@@ -1,5 +1,3 @@
-use near_sdk::AccountId;
+use near_sdk::json_types::U128;
 
-pub fn get_ref_finance_account() -> AccountId {
-    "ref-exchange.testnet".parse().unwrap()
-}
+pub type WBalance = U128;

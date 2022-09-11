@@ -1,12 +1,13 @@
 [package]
 name = "mtrading"
 version = "0.0.1"
-authors = ["mark.ts@blaize.tech", "tymofii.s@blaize.tech"]
+authors = ["<mark.ts@blaize.tech>", "<tymofii.s@blaize.tech>", "<dmytro.sh@blaize.tech>"]
 edition = "2021"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-near-sdk = "4.0.0"
-near-contract-standards = "4.0.0"
+near-sdk = "4.0.0-pre.6"
+near-contract-standards = "4.0.0-pre.6"
+uint = { version = "=0.9.0", default-features = false }

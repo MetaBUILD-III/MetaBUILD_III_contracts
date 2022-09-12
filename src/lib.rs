@@ -1,6 +1,7 @@
 extern crate core;
 
 mod common;
+mod ratio;
 #[allow(unused_variables)]
 mod user_profile;
 mod utils;
@@ -10,6 +11,7 @@ const GAS_FOR_BORROW: Gas = Gas(180_000_000_000_000);
 const WNEAR_MARKET: &str = "wnear_market.qa.nearlend.testnet";
 
 use crate::common::Events;
+use crate::ratio::*;
 use crate::user_profile::UserProfile;
 use crate::utils::WBalance;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
@@ -138,7 +140,7 @@ impl Contract {
             Balance::from(amount) > 0,
             "Amount should be a positive number"
         );
-        
+
         ext_market::ext(AccountId::try_from(WNEAR_MARKET.to_string()).unwrap())
             .with_static_gas(GAS_FOR_BORROW)
             .with_attached_deposit(NO_DEPOSIT)
@@ -240,5 +242,94 @@ impl Contract {
 
         // TODO make smth with borrow_balance further edit field of collateral
         // for some user that borrowed (could edit borrow_buy_token signature )
+    }
+
+    pub fn calculate_pnl(
+        &self,
+        buy_token_price: WRatio,
+        sell_token_price: WRatio,
+        collateral_amount: WRatio,
+        leverage: U128,
+    ) -> WRatio {
+        let borrow_amount = buy_token_price.0 * leverage.0 - buy_token_price.0;
+        let result = Ratio::from(collateral_amount.0 * leverage.0) / Ratio::from(10_u128.pow(24))
+            - Ratio::from(borrow_amount) / Ratio::from(sell_token_price.0)
+            - Ratio::from(collateral_amount.0) / Ratio::from(10_u128.pow(24));
+        WRatio::from(result)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use near_sdk::test_utils::test_env::{alice, bob};
+    use near_sdk::test_utils::VMContextBuilder;
+    use near_sdk::{testing_env, VMContext};
+
+    fn get_context(is_view: bool) -> VMContext {
+        VMContextBuilder::new()
+            .current_account_id(alice())
+            .signer_account_id(bob())
+            .predecessor_account_id("token_near".parse().unwrap())
+            .block_index(1)
+            .block_timestamp(1)
+            .is_view(is_view)
+            .build()
+    }
+
+    fn get_position() -> Position {
+        //amount: 1000 * 10^24 USDT
+        //leverage: 2.4 * 10^24
+        //buy_token_price: 1.01 * 10^24
+        //sell_token_price: 4.2 * 10^24
+        Position {
+            active: true,
+            p_type: PositionType::Long,
+            sell_token: "usdc.nearland.testnet".parse().unwrap(),
+            buy_token: "wnear.nearland.testnet".parse().unwrap(),
+            collateral_amount: 1000000000000000000000000000,
+            buy_token_price: 1010000000000000000000000,
+            sell_token_price: 420000000000000000000000,
+            leverage: 2400000000000000000000000,
+        }
+    }
+
+    fn get_position_examples() -> Position {
+        //amount: 1 * 10^24 USDT
+        //leverage: 3 * 10^24
+        //buy_token_price: 3000 * 10^24
+        //sell_token_price: 4100 * 10^24
+        Position {
+            active: true,
+            p_type: PositionType::Long,
+            sell_token: "usdc.nearland.testnet".parse().unwrap(),
+            buy_token: "wnear.nearland.testnet".parse().unwrap(),
+            collateral_amount: 10_u128.pow(24),
+            buy_token_price: 3000 * 10_u128.pow(24),
+            sell_token_price: 4100 * 10_u128.pow(24),
+            leverage: 3,
+        }
+    }
+
+    #[test]
+    fn test_pnl() {
+        let context = get_context(false);
+        testing_env!(context);
+        let markets: Vec<AccountId> = vec![
+            "usdc_market.nearland.testnet".parse().unwrap(),
+            "wnear_market.nearland.testnet".parse().unwrap(),
+        ];
+        let contract = Contract::new(markets);
+
+        let position = get_position_examples();
+        let result = contract.calculate_pnl(
+            WRatio::from(position.buy_token_price),
+            WRatio::from(position.sell_token_price),
+            WRatio::from(position.collateral_amount),
+            WRatio::from(position.leverage),
+        );
+
+        assert_eq!(result.0, 536585365853658536585366);
     }
 }

@@ -11,11 +11,9 @@ uint::construct_uint!(
     pub struct U384(6);
 );
 
-pub type WRatio = U128;
-
 pub(crate) const MAX_RATIO: u32 = 10000;
 
-pub const NUM_DECIMALS: u8 = 24;
+const NUM_DECIMALS: u8 = 24;
 const BIG_DIVISOR: u128 = 10u128.pow(NUM_DECIMALS as u32);
 const HALF_DIVISOR: u128 = BIG_DIVISOR / 2;
 

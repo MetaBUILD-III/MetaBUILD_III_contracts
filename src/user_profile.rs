@@ -5,9 +5,14 @@ use std::collections::HashMap;
 #[serde(crate = "near_sdk::serde")]
 #[derive(Default)]
 pub struct UserProfile {
-    /// Dtoken address -> collaterals
-    pub account_supplies: HashMap<AccountId, Balance>,
+    /// market address -> deposits
+    pub account_deposits: HashMap<AccountId, Balance>,
+}
 
-    /// Dtoken address -> borrows
-    pub account_borrows: HashMap<AccountId, Balance>,
+impl UserProfile {
+    pub fn new() -> UserProfile {
+        UserProfile {
+            account_deposits: Default::default(),
+        }
+    }
 }

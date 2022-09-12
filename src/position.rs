@@ -7,6 +7,7 @@ use crate::ratio::Ratio;
 #[serde(crate = "near_sdk::serde")]
 #[derive(Debug)]
 pub struct ViewPosition {
+    position_id: U128,
     p_type: PositionType,
     amount: WBalance,
     price: WBalance,
@@ -14,8 +15,9 @@ pub struct ViewPosition {
 }
 
 impl ViewPosition {
-    pub fn new(amount: Balance, price: Balance, fee: Ratio) -> ViewPosition {
+    pub fn new(position_id: u128, amount: Balance, price: Balance, fee: Ratio) -> ViewPosition {
         ViewPosition {
+            position_id: U128::from(position_id),
             p_type: PositionType::Long,
             amount: U128::from(amount),
             price: U128::from(price),

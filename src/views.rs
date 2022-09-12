@@ -29,21 +29,25 @@ impl Contract {
     pub fn view_user_positions(&self, market: AccountId, user: AccountId) -> Vec<ViewPosition> {
         return vec![
             ViewPosition::new(
+                2,
                 10000000000000000000000000,
                 1000 * 10u128.pow(24),
                 Ratio::from_str("0.3").unwrap(),
             ),
             ViewPosition::new(
+                3,
                 48729500000000000000000000,
                 20000 * 10u128.pow(24),
                 Ratio::from_str("0.3").unwrap(),
             ),
             ViewPosition::new(
+                1,
                 646382000000000000000000000,
                 4400 * 10u128.pow(24),
                 Ratio::from_str("0.15").unwrap(),
             ),
             ViewPosition::new(
+                4,
                 30000000000000000000000000,
                 24230 * 10u128.pow(24),
                 Ratio::from_str("0.11").unwrap(),

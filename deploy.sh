@@ -11,4 +11,9 @@ echo 'y' | near delete margin.nearlend.testnet nearlend.testnet
 near create-account margin.nearlend.testnet --masterAccount nearlend.testnet --initialBalance 20
 
 # redeploy contracts
-near deploy margin.nearlend.testnet --wasmFile ./res/mtrading.wasm
+near deploy margin.nearlend.testnet \
+    --wasmFile ./res/mtrading.wasm \
+    --initFunction 'new' \
+    --initArgs '{
+        "markets": ["usdt_market.qa.nearlend.testnet", "wnear_market.qa.nearlend.testnet"]
+    }'

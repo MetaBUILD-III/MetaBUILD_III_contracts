@@ -1,11 +1,10 @@
 extern crate core;
 
 mod common;
-#[allow(unused_variables)]
-mod user_profile;
-mod utils;
 mod position;
 mod ratio;
+mod user_profile;
+mod utils;
 mod views;
 
 const NO_DEPOSIT: u128 = 0;

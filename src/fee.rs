@@ -1,5 +1,4 @@
 use crate::*;
-use near_sdk::FunctionError;
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Debug)]
 #[serde(crate = "near_sdk::serde")]

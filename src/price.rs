@@ -1,22 +1,28 @@
 use crate::*;
+use crate::utils::Digits;
 
-pub type WBalance = U128;
-pub type Digits = u32;
-pub const FEE_DIVISOR: u32 = 10_000;
-pub type Digits = u32;
 
-pub const MARKET_PLATFORM_ACCOUNT: &str = "omomo.nearlend.testnet";
+#[near_bindgen]
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
+#[serde(crate = "near_sdk::serde")]
+#[derive(Debug)]
+pub struct Price {
+    /// Ticker price value
+    pub value: WBalance,
 
-#[ext_contract(ext_token)]
-trait NEP141Token {
-    fn ft_transfer_call(
-        &mut self,
-        receiver_id: AccountId,
-        amount: WBalance,
-        memo: Option<String>,
-        msg: String,
-    );
+    /// Ticker precision digits number
+    pub fraction_digits: Digits,
 }
+
+impl Price {
+    pub fn new(value: Balance, fraction_digits: u32) -> Price {
+        Price {
+            value: WBalance::from(value),
+            fraction_digits,
+        }
+    }
+}
+
 
 #[near_bindgen]
 impl Contract {
@@ -24,6 +30,7 @@ impl Contract {
         self.prices.insert(&market_id, &price);
     }
 }
+
 
 impl Contract {
     pub fn get_price_by_token(&self, token_id: AccountId) -> WBalance {
@@ -37,9 +44,5 @@ impl Contract {
     pub fn calculate_xrate(&self, token_id_1: AccountId, token_id_2: AccountId) -> Ratio {
         Ratio::from(self.get_price_by_token(token_id_1))
             / Ratio::from(self.get_price_by_token(token_id_2))
-    }
-
-    pub fn is_valid_market_call(&self) -> bool {
-        self.markets.contains(&env::predecessor_account_id())
     }
 }

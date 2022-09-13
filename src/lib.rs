@@ -1,5 +1,3 @@
-extern crate core;
-
 mod close_position;
 mod common;
 mod fee;
@@ -8,14 +6,13 @@ mod ratio;
 mod user_profile;
 mod utils;
 mod views;
+mod price;
 
 const NO_DEPOSIT: u128 = 0;
 const GAS_FOR_BORROW: Gas = Gas(180_000_000_000_000);
 const WNEAR_MARKET: &str = "wnear_market.qa.nearlend.testnet";
 
-use std::ascii::escape_default;
-use std::ops::Deref;
-use crate::common::Events;
+use crate::common::{Events, Price};
 use crate::fee::MarketData;
 use crate::ratio::*;
 use crate::user_profile::UserProfile;
@@ -31,6 +28,7 @@ use near_sdk::{
     BorshStorageKey, Gas, PromiseOrValue, PromiseResult,
 };
 use std::ops::Mul;
+use crate::price::Price;
 
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
 #[serde(crate = "near_sdk::serde")]
@@ -51,6 +49,7 @@ pub struct Position {
     buy_token_price: Balance,
     sell_token_price: Balance,
     leverage: u128,
+    owner: AccountId,
 }
 
 #[near_bindgen]
@@ -73,6 +72,12 @@ pub struct Contract {
     /// "wnear_market.omomo-finance.testnet", "usdt_market.omomo-finance.testnet"
     markets: LookupSet<AccountId>,
 
+    /// token ID -> Price
+    pub prices: LookupMap<AccountId, Price>,
+
+    /// token id -> market id
+    tokens_markets: LookupMap<AccountId, AccountId>,
+
     /// pool fee
     total_fee: u32,
 
@@ -87,6 +92,8 @@ pub struct Contract {
     /// first AccountId -> Token
     /// second AccountId -> Market
     markets_data: LookupMap<AccountId, LookupMap<AccountId, MarketData>>,
+
+    pub prices: LookupMap<AccountId, Price>,
 }
 
 impl Default for Contract {
@@ -100,7 +107,9 @@ pub enum StorageKeys {
     Positions,
     UserProfiles,
     Markets,
+    Prices,
     MarketsData,
+    Price,
 }
 
 #[ext_contract(underlying_token)]
@@ -124,12 +133,14 @@ trait MarketInterface {
 #[near_bindgen]
 impl Contract {
     #[init]
-    pub fn new(markets: Vec<AccountId>) -> Self {
+    pub fn new(tokens_markets: Vec<(AccountId, AccountId)>) -> Self {
         require!(!env::state_exists(), "Already initialized");
 
         let mut lookup_markets = LookupSet::new(StorageKeys::Markets);
-        for market in markets.iter() {
-            lookup_markets.insert(market);
+        let mut lookup_tm = LookupMap::new(StorageKeys::TokenMarkets);
+        for tm in tokens_markets.iter() {
+            lookup_tm.insert(&tm.0, &tm.1);
+            lookup_markets.insert(&tm.1);
         }
 
         Self {
@@ -137,10 +148,13 @@ impl Contract {
             positions: LookupMap::new(StorageKeys::Positions),
             user_profiles: UnorderedMap::new(StorageKeys::UserProfiles),
             markets: lookup_markets,
+            prices: LookupMap::new(StorageKeys::Prices),
+            tokens_markets: lookup_tm,
             total_fee: 0,
             exchange_fee: 0,
             referral_fee: 0,
             markets_data: LookupMap::new(StorageKeys::MarketsData),
+            prices: LookupMap::new(StorageKeys::Price),
         }
     }
 
@@ -191,10 +205,6 @@ impl Contract {
         self.user_profiles.get(&user_id).unwrap_or_default()
     }
 
-    pub fn is_valid_market_call(&self) -> bool {
-        self.markets.contains(&env::predecessor_account_id())
-    }
-
     pub fn increase_user_deposit(
         &mut self,
         market_id: AccountId,
@@ -208,7 +218,8 @@ impl Contract {
 
         // if its not present in our structure insert users profile
         if self.user_profiles.get(&user_id).is_none() {
-            self.user_profiles.insert(&user_id, &UserProfile::new(market_id.clone(), 0));
+            self.user_profiles
+                .insert(&user_id, &UserProfile::new(market_id.clone(), 0));
         }
 
         let mut user_profile: UserProfile = self.get_user_profile(user_id.clone());
@@ -220,15 +231,14 @@ impl Contract {
                 .insert(market_id, Balance::from(amount));
             self.user_profiles.insert(&user_id, &user_profile);
         } else {
-            let increased_balance = amount.0 + *user_profile.account_deposits.get(&market_id).unwrap();
-            user_profile.account_deposits.insert(
-                market_id.clone(),
-                increased_balance,
-            );
+            let increased_balance =
+                amount.0 + *user_profile.account_deposits.get(&market_id).unwrap();
+            user_profile
+                .account_deposits
+                .insert(market_id.clone(), increased_balance);
             self.user_profiles.insert(&user_id, &user_profile);
         }
     }
-
 
     pub fn decrease_user_deposit(
         &mut self,
@@ -288,12 +298,20 @@ impl Contract {
         sell_token_price: WRatio,
         collateral_amount: WRatio,
         leverage: U128,
-    ) -> WRatio {
+    ) -> (bool, Ratio) {
         let borrow_amount = buy_token_price.0 * leverage.0 - buy_token_price.0;
-        let result = Ratio::from(collateral_amount.0 * leverage.0) / Ratio::from(10_u128.pow(24))
-            - Ratio::from(borrow_amount) / Ratio::from(sell_token_price.0)
-            - Ratio::from(collateral_amount.0) / Ratio::from(10_u128.pow(24));
-        WRatio::from(result)
+        let c_a = Ratio::from(collateral_amount.0 * leverage.0) / Ratio::from(10_u128.pow(24));
+        let div_value = Ratio::from(borrow_amount) / Ratio::from(sell_token_price.0)
+            + Ratio::from(collateral_amount.0) / Ratio::from(10_u128.pow(24));
+        let profit: bool;
+        let result = if c_a > div_value {
+            profit = true;
+            c_a - div_value
+        } else {
+            profit = false;
+            div_value - c_a
+        };
+        (profit, result)
     }
 
     pub fn get_liquidation_price(
@@ -357,6 +375,7 @@ mod tests {
             buy_token_price: 42 * 10_u128.pow(23),
             sell_token_price: 45 * 10_u128.pow(23),
             leverage: 24 * 10_u128.pow(23),
+            owner: alice(),
         }
     }
 
@@ -374,6 +393,7 @@ mod tests {
             buy_token_price: 3000 * 10_u128.pow(24),
             sell_token_price: 4100 * 10_u128.pow(24),
             leverage: 3,
+            owner: alice(),
         }
     }
 
@@ -381,11 +401,17 @@ mod tests {
     fn test_pnl() {
         let context = get_context(false);
         testing_env!(context);
-        let markets: Vec<AccountId> = vec![
-            "usdc_market.nearland.testnet".parse().unwrap(),
-            "wnear_market.nearland.testnet".parse().unwrap(),
+        let token_markets: Vec<(AccountId, AccountId)> = vec![
+            (
+                "usdt.nearland.testnet".parse().unwrap(),
+                "usdt_market.nearland.testnet".parse().unwrap(),
+            ),
+            (
+                "wnear.nearland.testnet".parse().unwrap(),
+                "wnear_market.nearland.testnet".parse().unwrap(),
+            ),
         ];
-        let contract = Contract::new(markets);
+        let contract = Contract::new(token_markets);
 
         let position = get_position_examples();
         let result = contract.calculate_pnl(
@@ -402,11 +428,17 @@ mod tests {
     fn test_liquidation_price() {
         let context = get_context(false);
         testing_env!(context);
-        let markets: Vec<AccountId> = vec![
-            "usdc_market.nearland.testnet".parse().unwrap(),
-            "wnear_market.nearland.testnet".parse().unwrap(),
+        let token_markets: Vec<(AccountId, AccountId)> = vec![
+            (
+                "usdt.nearland.testnet".parse().unwrap(),
+                "usdt_market.nearland.testnet".parse().unwrap(),
+            ),
+            (
+                "wnear.nearland.testnet".parse().unwrap(),
+                "wnear_market.nearland.testnet".parse().unwrap(),
+            ),
         ];
-        let contract = Contract::new(markets);
+        let contract = Contract::new(token_markets);
         let position = get_position();
 
         let result = contract.get_liquidation_price(

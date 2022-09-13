@@ -13,17 +13,13 @@ impl Contract {
         if self.user_profiles.get(&user).is_none() {
             U128::from(0)
         } else {
-            U128::from(
-                *self
-                    .user_profiles
-                    .get(&user)
-                    .unwrap()
-                    .account_deposits
-                    .get(&AccountId::from_str(USDT_MARKET).unwrap())
-                    .unwrap_or(
-                        &(U128::from(Ratio::from_str("321.432").unwrap()).0 * 10u128.pow(24)),
-                    ), // TODO change to .unwrap_or(&0),
-            )
+            let user_profile = self.user_profiles.get(&user).unwrap();
+
+            if !user_profile.account_deposits.contains_key(&market) {
+                U128::from(0)
+            } else {
+                U128::from(*user_profile.account_deposits.get(&market).unwrap())
+            }
         }
     }
 

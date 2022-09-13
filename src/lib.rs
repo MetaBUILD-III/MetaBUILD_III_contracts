@@ -2,6 +2,7 @@ extern crate core;
 
 mod close_position;
 mod common;
+mod fee;
 mod position;
 mod ratio;
 mod user_profile;
@@ -15,8 +16,11 @@ const WNEAR_MARKET: &str = "wnear_market.qa.nearlend.testnet";
 use std::ascii::escape_default;
 use std::ops::Deref;
 use crate::common::Events;
+use crate::fee::MarketData;
+use crate::ratio::*;
 use crate::user_profile::UserProfile;
 use crate::utils::WBalance;
+
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LookupMap, LookupSet, UnorderedMap};
 use near_sdk::env::current_account_id;
@@ -68,6 +72,21 @@ pub struct Contract {
     /// Market we are working with that are allowed to alter contracts field
     /// "wnear_market.omomo-finance.testnet", "usdt_market.omomo-finance.testnet"
     markets: LookupSet<AccountId>,
+
+    /// pool fee
+    total_fee: u32,
+
+    /// Exchange fee, that goes to exchange itself (managed by governance).
+    exchange_fee: u32,
+
+    /// Referral fee, that goes to referrer in the call.
+    referral_fee: u32,
+
+    /// List of all the pools.
+    /// data about markets
+    /// first AccountId -> Token
+    /// second AccountId -> Market
+    markets_data: LookupMap<AccountId, LookupMap<AccountId, MarketData>>,
 }
 
 impl Default for Contract {
@@ -81,16 +100,25 @@ pub enum StorageKeys {
     Positions,
     UserProfiles,
     Markets,
+    MarketsData,
+}
+
+#[ext_contract(underlying_token)]
+trait UnderlineTokenInterface {
+    fn ft_balance_of(&self, account_id: AccountId) -> U128;
 }
 
 #[ext_contract(ext_self)]
 trait ContractCallbackInterface {
     fn borrow_buy_token_callback(&self, amount: WBalance);
+    fn update_market_data_callback(&self, token_id: AccountId, market_id: AccountId);
+    fn set_market_data(&self, token_id: AccountId, market_id: AccountId);
 }
 
 #[ext_contract(ext_market)]
 trait MarketInterface {
     fn borrow(&mut self, amount: WBalance) -> PromiseOrValue<U128>;
+    fn view_market_data(&self, ft_balance: WBalance) -> MarketData;
 }
 
 #[near_bindgen]
@@ -109,6 +137,10 @@ impl Contract {
             positions: LookupMap::new(StorageKeys::Positions),
             user_profiles: UnorderedMap::new(StorageKeys::UserProfiles),
             markets: lookup_markets,
+            total_fee: 0,
+            exchange_fee: 0,
+            referral_fee: 0,
+            markets_data: LookupMap::new(StorageKeys::MarketsData),
         }
     }
 

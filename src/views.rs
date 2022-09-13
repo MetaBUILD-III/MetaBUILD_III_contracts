@@ -2,31 +2,32 @@ use crate::position::ViewPosition;
 use crate::ratio::Ratio;
 use crate::*;
 use near_sdk::near_bindgen;
-
+use std::borrow::Borrow;
 use std::str::FromStr;
 
 const USDT_MARKET: &str = "usdt_market.qa.nearlend.testnet";
 
 #[near_bindgen]
 impl Contract {
-    pub fn view_balance(&self, user: AccountId, _market: AccountId) -> WBalance {
+    pub fn view_balance(&self, user: AccountId, market: AccountId) -> WBalance {
         if self.user_profiles.get(&user).is_none() {
             U128::from(0)
         } else {
-            let user_profile = self
-                .user_profiles
-                .get(&user)
-                .unwrap();
-
-            if !user_profile.account_deposits.contains_key(&market) {
-                U128::from(0)
-            } else {
-                U128::from(*user_profile.account_deposits.get(&market).unwrap())
-            }
+            U128::from(
+                *self
+                    .user_profiles
+                    .get(&user)
+                    .unwrap()
+                    .account_deposits
+                    .get(&AccountId::from_str(USDT_MARKET).unwrap())
+                    .unwrap_or(
+                        &(U128::from(Ratio::from_str("321.432").unwrap()).0 * 10u128.pow(24)),
+                    ), // TODO change to .unwrap_or(&0),
+            )
         }
     }
 
-    pub fn view_user_positions(&self, _market: AccountId, _user: AccountId) -> Vec<ViewPosition> {
+    pub fn view_user_positions(&self, market: AccountId, user: AccountId) -> Vec<ViewPosition> {
         return vec![
             ViewPosition::new(
                 2,

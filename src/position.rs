@@ -12,23 +12,14 @@ pub const REF_FINANCE: &str = "ref-finance-101.testnet";
 #[serde(crate = "near_sdk::serde")]
 #[derive(Debug)]
 pub struct ViewPosition {
-    position_id: U128,
-    p_type: PositionType,
-    amount: WBalance,
-    price: WBalance,
-    fee: U128,
-}
-
-impl ViewPosition {
-    pub fn new(position_id: u128, amount: Balance, price: Balance, fee: Ratio) -> ViewPosition {
-        ViewPosition {
-            position_id: U128::from(position_id),
-            p_type: PositionType::Long,
-            amount: U128::from(amount),
-            price: U128::from(price),
-            fee: U128::from(fee),
-        }
-    }
+    pub active: bool,
+    pub position_id: U128,
+    pub p_type: PositionType,
+    pub amount: WBalance,
+    pub price: WBalance,
+    pub fee: U128,
+    pub sell_token: AccountId,
+    pub buy_token: AccountId,
 }
 
 impl fmt::Display for ViewPosition {
@@ -48,6 +39,7 @@ impl Position {
         buy_token_price: Balance,
         sell_token_price: Balance,
         leverage: u128,
+        borrow_amount: Balance,
     ) -> Position {
         Position {
             position_id,
@@ -59,6 +51,7 @@ impl Position {
             buy_token_price,
             sell_token_price,
             leverage,
+            borrow_amount
         }
     }
 }

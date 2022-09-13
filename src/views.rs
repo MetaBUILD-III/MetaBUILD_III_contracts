@@ -25,15 +25,28 @@ impl Contract {
     pub fn view_user_positions(&self, market: AccountId, user: AccountId) -> Vec<ViewPosition> {
         if self.positions.get(&user).is_none() {
             return vec![];
-        } else {
-            self.positions.get(&user).unwrap().values().map(|position|
-                ViewPosition::new(position.position_id, position.collateral_amount, position.sell_token_price, Ratio::from_str("0.3").unwrap())
-            ).collect()
         }
-    }
 
-    pub fn view_pisition_amount(&self) -> u8 {
-        self.positions.len() as u8
+        self.positions
+        .get(&user)
+        .unwrap()
+        .values()
+        .map(|position| {
+                let borrow_amount = U128::from(Ratio::from(U128::from(position.collateral_amount)) * Ratio::from(U128::from(position.leverage)));
+                let price = self.get_price_by_token(position.buy_token.clone());
+
+                ViewPosition{
+                    active: position.active,
+                    position_id: position.position_id.into(),
+                    p_type: position.p_type.clone(),
+                    amount: borrow_amount.into(),
+                    price: U128::from(price),
+                    fee: Ratio::from_str("0.3").unwrap().into(),
+                    sell_token: position.sell_token.clone(),
+                    buy_token: position.buy_token.clone(),
+                }
+            })
+            .collect()
     }
 }
 

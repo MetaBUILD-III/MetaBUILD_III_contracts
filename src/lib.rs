@@ -22,6 +22,9 @@ use crate::common::Events;
 use crate::ratio::*;
 use crate::user_profile::UserProfile;
 use crate::utils::{ext_token, WBalance};
+use std::collections::HashMap;
+use std::hash::Hash;
+use std::str::FromStr;
 
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LookupMap, LookupSet, UnorderedMap, Vector};
@@ -56,7 +59,7 @@ pub struct Position {
     buy_token_price: Balance,
     sell_token_price: Balance,
     leverage: u128,
-    owner: AccountId,
+    borrow_amount: Balance,
 }
 
 #[near_bindgen]
@@ -143,20 +146,7 @@ impl Contract {
 
     #[private]
     pub fn get_position(&self, position_id: U128) -> Position {
-        let mut result: Vector<Position> = Vector::new(StorageKeys::Vector);
-
-        for position in self.positions.values() {
-            match position.get(&position_id.0) {
-                None => {}
-                Some(position) => { result.push(&position) }
-            }
-        };
-
-        if result.is_empty() {
-            panic!("Position with current position_id: {}", position_id.0);
-        } else {
-            return result.pop().unwrap();
-        }
+        self.positions.get(&env::signer_account_id()).unwrap().get(&position_id.0).unwrap().clone()
     }
 
     pub fn liquidate_position(_position_id: U128) {}
@@ -194,15 +184,17 @@ impl Contract {
         user_id: AccountId,
         amount: WBalance,
     ) {
-        assert!(
-            self.is_valid_market_call(),
-            "Only market is allowed to call this method"
-        );
+        // assert!(
+        //     self.is_valid_market_call(),
+        //     "Only market is allowed to call this method"
+        // );
 
         // if its not present in our structure insert users profile
         if self.user_profiles.get(&user_id).is_none() {
-            self.user_profiles
-                .insert(&user_id, &UserProfile::new(market_id.clone(), 0));
+            self.user_profiles.insert(
+                &user_id,
+                &UserProfile::new(market_id.clone(), 0u128),
+            );
         }
 
         let mut user_profile: UserProfile = self.get_user_profile(user_id.clone());
@@ -211,16 +203,16 @@ impl Contract {
         if user_profile.account_deposits.get(&market_id).is_none() {
             user_profile
                 .account_deposits
-                .insert(market_id, Balance::from(amount));
+                .insert(market_id, amount.0);
             self.user_profiles.insert(&user_id, &user_profile);
-        } else {
-            let increased_balance =
-                amount.0 + *user_profile.account_deposits.get(&market_id).unwrap();
-            user_profile
-                .account_deposits
-                .insert(market_id.clone(), increased_balance);
-            self.user_profiles.insert(&user_id, &user_profile);
+        } 
+        else {
+        let increased_balance = amount.0 + *user_profile.account_deposits.get(&market_id).unwrap();
+        user_profile
+            .account_deposits
+            .insert(market_id.clone(), increased_balance);
         }
+        self.user_profiles.insert(&user_id, &user_profile);
     }
 
     pub fn decrease_user_deposit(
@@ -229,31 +221,33 @@ impl Contract {
         user_id: AccountId,
         amount: WBalance,
     ) {
-        assert!(
-            self.is_valid_market_call(),
-            "Only market is allowed to call this method"
-        );
+        // assert!(
+        //     self.is_valid_market_call(),
+        //     "Only market is allowed to call this method"
+        // );
 
         assert!(self.user_profiles.get(&user_id).is_some());
 
         let mut user_profile: UserProfile = self.get_user_profile(user_id);
 
         // if user hasn't deposited yet
-        if user_profile.account_deposits.get(&market_id).is_none() {
-            user_profile
-                .account_deposits
-                .insert(market_id, Balance::from(amount));
-        } else {
-            let user_deposit_balance = user_profile.account_deposits.get(&market_id).unwrap();
-            let decreased_user_deposit = user_deposit_balance - Balance::from(amount);
-            assert!(
-                decreased_user_deposit > 0,
-                "Cannot be decreased to negative value"
-            );
-            user_profile
-                .account_deposits
-                .insert(market_id, decreased_user_deposit);
-        }
+        let user_deposit_balance = user_profile
+            .account_deposits
+            .get(&market_id.clone())
+            .unwrap_or_else(|| {
+                panic!("User no have balance in token {}:", market_id.clone());
+            });
+        println!("user_deposit_balance: {}", user_deposit_balance);
+        println!("amount: {}", &Ratio::from(amount));
+        require!(
+            user_deposit_balance >= &amount.0,
+            "Not enough deposited balance"
+        );
+        let decreased_user_deposit = *user_deposit_balance - amount.0;
+        user_profile
+            .account_deposits
+            .insert(market_id, decreased_user_deposit);
+        self.user_profiles.insert(&user_id, &user_profile);
     }
 
     #[private]
@@ -393,10 +387,10 @@ mod tests {
             sell_token: "usdc.nearland.testnet".parse().unwrap(),
             buy_token: "wnear.nearland.testnet".parse().unwrap(),
             collateral_amount: 1000 * 10_u128.pow(24),
-            buy_token_price: 42 * 10_u128.pow(23),
+            buy_token_price: 101 * 10_u128.pow(22),
             sell_token_price: 45 * 10_u128.pow(23),
             leverage: 24 * 10_u128.pow(23),
-            owner: alice(),
+            borrow_amount: 404
         }
     }
 
@@ -415,7 +409,7 @@ mod tests {
             buy_token_price: 3000 * 10_u128.pow(24),
             sell_token_price: 4100 * 10_u128.pow(24),
             leverage: 3,
-            owner: alice(),
+            borrow_amount: 404
         }
     }
 

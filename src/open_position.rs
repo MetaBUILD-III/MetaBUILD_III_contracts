@@ -23,22 +23,28 @@ impl Contract {
 
         let xrate = self.calculate_xrate(sell_token.clone(), buy_token.clone());
 
-        let borrow_token_amount =
-            U128::from(Ratio::from(sell_token_amount) * xrate * Ratio::from(leverage));
+        let borrow_token_amount = U128::from(
+            Ratio::from(sell_token_amount) * Ratio::from(xrate) * Ratio::from(leverage),
+        );
+        log!("borrowing amount {}", borrow_token_amount.0);
 
-        self.borrow_buy_token(borrow_token_amount);
+        self.borrow_buy_token(borrow_token_amount.clone());
 
-        self.insert_position(env::signer_account_id(), Position::new(
-            self.total_positions + 1,
-            true,
-            PositionType::Long,
-            sell_token.clone(),
-            buy_token.clone(),
-            sell_token_amount.0,
-            self.get_price_by_token(buy_token).0,
+        self.insert_position(
+            env::signer_account_id(),
+            Position::new(
+                self.total_positions,
+                true,
+                PositionType::Long,
+                sell_token.clone(),
+                buy_token.clone(),
+                sell_token_amount.0,
+                self.get_price_by_token(buy_token).0,
             self.get_price_by_token(sell_token).0,
-            leverage.0,
-        ));
+                leverage.0,
+                borrow_token_amount.0,
+            ),
+        );
 
         PromiseOrValue::Value(U128(0))
     }
@@ -46,15 +52,19 @@ impl Contract {
 
 impl Contract {
     pub fn insert_position(&mut self, user_id: AccountId, position: Position) {
-        if self.positions.get(&user_id).is_none() {
-            let mut position_by_id = HashMap::new();
-            position_by_id.insert(*&position.position_id, position.clone());
+        self.decrease_user_deposit(position.sell_token.clone(), user_id.clone(), position.collateral_amount.into());
 
-            self.positions.insert(&user_id, &position_by_id);
-        }
+        let mut positions: HashMap<u128, Position> =if self.positions.get(&user_id).is_none() {
+            HashMap::new()
+        } else {
+            self.positions
+            .get(&user_id)
+            .unwrap()
+        };
 
-        self.positions.get(&user_id).unwrap().insert(*&position.position_id, position);
-
+        positions.insert(*&position.position_id, position);
+        self.positions.insert(&user_id, &positions);
+            
         self.total_positions += 1;
     }
 }

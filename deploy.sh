@@ -15,5 +15,5 @@ near deploy margin.nearlend.testnet \
     --wasmFile ./res/mtrading.wasm \
     --initFunction 'new' \
     --initArgs '{
-        "markets": ["usdt_market.qa.nearlend.testnet", "wnear_market.qa.nearlend.testnet"]
+        "tokens_markets": [["usdt.nearland.testnet","usdt_market.qa.nearlend.testnet"], ["wnear.qa.nearlend.testnet", "wnear_market.qa.nearlend.testnet"]]
     }'

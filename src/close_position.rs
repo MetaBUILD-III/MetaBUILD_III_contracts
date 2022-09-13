@@ -79,7 +79,7 @@ impl Contract {
         })];
 
         let action = TokenReceiverMessage::Execute {
-            force: false,
+            force: true,
             actions,
         };
 
@@ -131,7 +131,7 @@ impl Contract {
         self.increase_user_deposit(
             position.sell_token.clone(),
             signer_account_id(),
-            min_amount_out,
+            U128::from(min_amount_out.0 - position.borrow_amount),
         );
 
         // if pnl.0 {

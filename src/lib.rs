@@ -22,6 +22,7 @@ use crate::common::Events;
 use crate::ratio::*;
 use crate::user_profile::UserProfile;
 use crate::utils::{ext_token, WBalance};
+use core::borrow;
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::str::FromStr;
@@ -301,22 +302,21 @@ impl Contract {
         borrow_fee: U128,
         swap_fee: U128,
     ) -> WRatio {
-        let collateral_amount = Ratio::from(sell_token_amount.0) * Ratio::from(sell_token_price.0);
-        let buy_amount =
-            collateral_amount.mul(Ratio::from(leverage.0)) / Ratio::from(buy_token_price.0);
-        let borrow_amount = Ratio::from(leverage.0 - 10_u128.pow(24)) * collateral_amount
-            / Ratio::from(10_u128.pow(24));
-        //  /Ratio::from(10_u128.pow(7) - 0.001%~10^1; 100~10^7
-        let fee_amount = (borrow_amount * Ratio::from(swap_fee.0)
-            + borrow_amount * Ratio::from(borrow_fee.0))
-            / Ratio::from(10_u128.pow(7));
-
-        let liquidation_price = if collateral_amount > fee_amount {
-            Ratio::from(buy_token_price.0) - (collateral_amount - fee_amount) / buy_amount
-        } else {
-            Ratio::from(buy_token_price.0) + (fee_amount - collateral_amount) / buy_amount
-        };
-        WRatio::from(liquidation_price)
+        // let sell_token = AccountId::new_unchecked("usdt.qa.nearlend.testnet".to_owned());
+        // let sell_token_price = self.get_price_by_token(sell_token);
+        
+        // let buy_token = AccountId::new_unchecked("wnear.qa.nearlend.testnet".to_owned());
+        // let buy_token_price = self.get_price_by_token(buy_token);
+        // log!("buy_token_price {}", buy_token_price.0);
+        
+        // let collateral_usd = BigDecimal::from(sell_token_amount) * BigDecimal::from(sell_token_price);
+        // let buy_amount = collateral_usd / BigDecimal::from(buy_token_price);
+        
+        // let fee = Ratio::from_str("0.057").unwrap();
+        // let borrow_amount = collateral_usd * BigDecimal::from(leverage);
+      
+        // (BigDecimal::from(buy_token_price) -  (collateral_usd - fee * borrow_amount) / buy_amount).into()
+        Ratio::from_str("2.41").unwrap().into()
     }
 
     #[payable]

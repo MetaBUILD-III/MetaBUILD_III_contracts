@@ -46,7 +46,10 @@ impl Contract {
             ),
         );
 
-        PromiseOrValue::Value(U128(0))
+        let borrow_amount = U128::from(
+            Ratio::from(sell_token_amount) * Ratio::from(leverage),
+        );
+        PromiseOrValue::Value(borrow_amount)
     }
 }
 

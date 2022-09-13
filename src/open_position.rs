@@ -16,7 +16,7 @@ impl Contract {
 
         require!(user_profile.account_deposits.get(&sell_token).is_some(), "User don't have deposits in sell token");
 
-        assert_eq!(*user_profile.account_deposits.get(&sell_token).unwrap(),
+        require!(*user_profile.account_deposits.get(&sell_token).unwrap() >=
                    sell_token_amount.0,
                    "User don't have enough collateral deposited to proceed this action"
         );

@@ -29,10 +29,7 @@ impl Contract {
     pub fn set_price(&mut self, market_id: AccountId, price: Price) {
         self.prices.insert(&market_id, &price);
     }
-}
 
-
-impl Contract {
     pub fn get_price_by_token(&self, token_id: AccountId) -> WBalance {
         assert!(
             self.prices.get(&token_id).is_some(),

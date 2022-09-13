@@ -23,32 +23,13 @@ impl Contract {
     }
 
     pub fn view_user_positions(&self, market: AccountId, user: AccountId) -> Vec<ViewPosition> {
-        return vec![
-            ViewPosition::new(
-                2,
-                10000000000000000000000000,
-                1000 * 10u128.pow(24),
-                Ratio::from_str("0.3").unwrap(),
-            ),
-            ViewPosition::new(
-                3,
-                48729500000000000000000000,
-                20000 * 10u128.pow(24),
-                Ratio::from_str("0.3").unwrap(),
-            ),
-            ViewPosition::new(
-                1,
-                646382000000000000000000000,
-                4400 * 10u128.pow(24),
-                Ratio::from_str("0.15").unwrap(),
-            ),
-            ViewPosition::new(
-                4,
-                30000000000000000000000000,
-                24230 * 10u128.pow(24),
-                Ratio::from_str("0.11").unwrap(),
-            ),
-        ];
+        if self.positions.get(&user).is_none() {
+            return vec![];
+        } else {
+            self.positions.get(&user).unwrap().values().map(|position|
+                ViewPosition::new(position.position_id, position.collateral_amount, position.sell_token_price, Ratio::from_str("0.3").unwrap())
+            ).collect()
+        }
     }
 
     pub fn view_pisition_amount(&self) -> u8 {

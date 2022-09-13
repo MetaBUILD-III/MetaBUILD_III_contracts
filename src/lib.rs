@@ -15,8 +15,8 @@ const NO_DEPOSIT: u128 = 0;
 const GAS_FOR_BORROW: Gas = Gas(180_000_000_000_000);
 const WNEAR_MARKET: &str = "wnear_market.qa.nearlend.testnet";
 
-use std::ascii::escape_default;
-use std::ops::Deref;
+use std::collections::HashMap;
+use std::hash::Hash;
 use crate::fee::MarketData;
 use crate::common::Events;
 use crate::ratio::*;
@@ -24,7 +24,7 @@ use crate::user_profile::UserProfile;
 use crate::utils::{ext_token, WBalance};
 
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::collections::{LookupMap, LookupSet, UnorderedMap};
+use near_sdk::collections::{LookupMap, LookupSet, UnorderedMap, Vector};
 use near_sdk::env::{current_account_id, signer_account_id};
 use near_sdk::json_types::U128;
 use near_sdk::serde::{Deserialize, Serialize};
@@ -37,7 +37,7 @@ use crate::price::Price;
 
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
 #[serde(crate = "near_sdk::serde")]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum PositionType {
     Long,
     Short,
@@ -45,7 +45,7 @@ pub enum PositionType {
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
 #[serde(crate = "near_sdk::serde")]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Position {
     position_id: u128,
     active: bool,
@@ -68,8 +68,8 @@ pub struct Contract {
     /// number of all positions
     total_positions: u128,
 
-    /// list positions with data
-    positions: UnorderedMap<u128, Position>,
+    ///  user_id -> position_id -> position
+    positions: UnorderedMap<AccountId, HashMap<u128, Position>>,
 
     /// User Account ID -> market address -> collaterals
     /// User Account ID -> market address -> borrows
@@ -95,6 +95,13 @@ pub enum StorageKeys {
     UserProfiles,
     Markets,
     Prices,
+    MarketsData,
+    Vector
+}
+
+#[ext_contract(underlying_token)]
+trait UnderlineTokenInterface {
+    fn ft_balance_of(&self, account_id: AccountId) -> U128;
 }
 
 #[ext_contract(ext_self)]
@@ -136,9 +143,20 @@ impl Contract {
 
     #[private]
     pub fn get_position(&self, position_id: U128) -> Position {
-        self.positions
-            .get(&position_id.0)
-            .unwrap_or_else(|| panic!("Position with current position_id: {}", position_id.0))
+        let mut result: Vector<Position> = Vector::new(StorageKeys::Vector);
+
+        for position in self.positions.values() {
+            match position.get(&position_id.0) {
+                None => {}
+                Some(position) => { result.push(&position) }
+            }
+        };
+
+        if result.is_empty() {
+            panic!("Position with current position_id: {}", position_id.0);
+        } else {
+            return result.pop().unwrap();
+        }
     }
 
     pub fn liquidate_position(_position_id: U128) {}
@@ -264,10 +282,11 @@ impl Contract {
         collateral_amount: WRatio,
         leverage: U128,
     ) -> (bool, Ratio) {
-        let borrow_amount = buy_token_price.0 * leverage.0 - buy_token_price.0;
-        let c_a = Ratio::from(collateral_amount.0 * leverage.0) / Ratio::from(10_u128.pow(24));
-        let div_value = Ratio::from(borrow_amount) / Ratio::from(sell_token_price.0)
-            + Ratio::from(collateral_amount.0) / Ratio::from(10_u128.pow(24));
+        let borrow_amount =
+            Ratio::from(buy_token_price) * Ratio::from(leverage.0) - Ratio::from(buy_token_price);
+        let c_a = Ratio::from(collateral_amount) * Ratio::from(leverage.0);
+        let div_value = Ratio::from(borrow_amount) / Ratio::from(sell_token_price)
+            + Ratio::from(collateral_amount);
         let profit: bool;
         let result = if c_a > div_value {
             profit = true;
@@ -455,4 +474,5 @@ mod tests {
 
         assert_eq!(result, U128(215745429394269796120481938246454935552));
     }
+
 }

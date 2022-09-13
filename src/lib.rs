@@ -1,4 +1,5 @@
-mod close_position;
+extern crate core;
+
 mod common;
 mod fee;
 mod position;
@@ -7,20 +8,24 @@ mod user_profile;
 mod utils;
 mod views;
 mod price;
+mod open_position;
+mod close_position;
 
 const NO_DEPOSIT: u128 = 0;
 const GAS_FOR_BORROW: Gas = Gas(180_000_000_000_000);
 const WNEAR_MARKET: &str = "wnear_market.qa.nearlend.testnet";
 
-use crate::common::{Events, Price};
+use std::ascii::escape_default;
+use std::ops::Deref;
 use crate::fee::MarketData;
+use crate::common::Events;
 use crate::ratio::*;
 use crate::user_profile::UserProfile;
-use crate::utils::WBalance;
+use crate::utils::{ext_token, WBalance};
 
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LookupMap, LookupSet, UnorderedMap};
-use near_sdk::env::current_account_id;
+use near_sdk::env::{current_account_id, signer_account_id};
 use near_sdk::json_types::U128;
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{
@@ -33,14 +38,16 @@ use crate::price::Price;
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
 #[serde(crate = "near_sdk::serde")]
 #[derive(Debug)]
-enum PositionType {
+pub enum PositionType {
     Long,
     Short,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
 #[serde(crate = "near_sdk::serde")]
+#[derive(Debug)]
 pub struct Position {
+    position_id: u128,
     active: bool,
     p_type: PositionType,
     sell_token: AccountId,
@@ -62,37 +69,17 @@ pub struct Contract {
     total_positions: u128,
 
     /// list positions with data
-    positions: LookupMap<u128, Position>,
+    positions: UnorderedMap<u128, Position>,
 
     /// User Account ID -> market address -> collaterals
     /// User Account ID -> market address -> borrows
     user_profiles: UnorderedMap<AccountId, UserProfile>,
 
     /// Market we are working with that are allowed to alter contracts field
-    /// "wnear_market.omomo-finance.testnet", "usdt_market.omomo-finance.testnet"
+    /// "wnear_market.qa.nearlend.testnet", "usdt_market.qa.nearlend.testnet"
     markets: LookupSet<AccountId>,
 
-    /// token ID -> Price
-    pub prices: LookupMap<AccountId, Price>,
-
-    /// token id -> market id
-    tokens_markets: LookupMap<AccountId, AccountId>,
-
-    /// pool fee
-    total_fee: u32,
-
-    /// Exchange fee, that goes to exchange itself (managed by governance).
-    exchange_fee: u32,
-
-    /// Referral fee, that goes to referrer in the call.
-    referral_fee: u32,
-
-    /// List of all the pools.
-    /// data about markets
-    /// first AccountId -> Token
-    /// second AccountId -> Market
-    markets_data: LookupMap<AccountId, LookupMap<AccountId, MarketData>>,
-
+    /// market ID -> Price
     pub prices: LookupMap<AccountId, Price>,
 }
 
@@ -108,13 +95,6 @@ pub enum StorageKeys {
     UserProfiles,
     Markets,
     Prices,
-    MarketsData,
-    Price,
-}
-
-#[ext_contract(underlying_token)]
-trait UnderlineTokenInterface {
-    fn ft_balance_of(&self, account_id: AccountId) -> U128;
 }
 
 #[ext_contract(ext_self)]
@@ -122,6 +102,7 @@ trait ContractCallbackInterface {
     fn borrow_buy_token_callback(&self, amount: WBalance);
     fn update_market_data_callback(&self, token_id: AccountId, market_id: AccountId);
     fn set_market_data(&self, token_id: AccountId, market_id: AccountId);
+    fn withdraw_callback(&self, token_id: AccountId, amount: U128);
 }
 
 #[ext_contract(ext_market)]
@@ -129,6 +110,7 @@ trait MarketInterface {
     fn borrow(&mut self, amount: WBalance) -> PromiseOrValue<U128>;
     fn view_market_data(&self, ft_balance: WBalance) -> MarketData;
 }
+
 
 #[near_bindgen]
 impl Contract {
@@ -145,16 +127,10 @@ impl Contract {
 
         Self {
             total_positions: 0,
-            positions: LookupMap::new(StorageKeys::Positions),
+            positions: UnorderedMap::new(StorageKeys::Positions),
             user_profiles: UnorderedMap::new(StorageKeys::UserProfiles),
             markets: lookup_markets,
             prices: LookupMap::new(StorageKeys::Prices),
-            tokens_markets: lookup_tm,
-            total_fee: 0,
-            exchange_fee: 0,
-            referral_fee: 0,
-            markets_data: LookupMap::new(StorageKeys::MarketsData),
-            prices: LookupMap::new(StorageKeys::Price),
         }
     }
 
@@ -165,20 +141,9 @@ impl Contract {
             .unwrap_or_else(|| panic!("Position with current position_id: {}", position_id.0))
     }
 
-    pub fn open_position(
-        &mut self,
-        _amount: U128,
-        _buy_token: AccountId,
-        _sell_token: AccountId,
-        _leverage: U128,
-    ) -> u128 {
-        self.total_positions += 1;
-        self.total_positions
-    }
-
     pub fn liquidate_position(_position_id: U128) {}
 
-    pub fn borrow_buy_token(amount: U128) {
+    pub fn borrow_buy_token(&self, amount: U128) {
         require!(
             env::prepaid_gas() >= GAS_FOR_BORROW,
             "Prepaid gas is not enough for borrow flow"
@@ -340,6 +305,42 @@ impl Contract {
         };
         WRatio::from(liquidation_price)
     }
+
+    #[payable]
+    pub fn withdraw(&mut self, token_id: AccountId, amount: U128) {
+        let balance = self.view_balance(env::signer_account_id(), token_id.clone());
+
+        require!(
+            balance.0 >= amount.0,
+            format!("Account:{} not have enough balance", signer_account_id())
+        );
+
+        ext_token::ext(token_id.clone())
+            .with_static_gas(self.terra_gas(5))
+            .with_attached_deposit(1)
+            .ft_transfer(
+                signer_account_id(),
+                amount,
+                Some(format!(
+                    "Withdraw from: {} amount: {}",
+                    current_account_id(),
+                    u128::try_from(amount).unwrap()
+                )),
+            )
+            .then(
+                ext_self::ext(current_account_id())
+                    .with_static_gas(self.terra_gas(2))
+                    .with_attached_deposit(NO_DEPOSIT)
+                    .withdraw_callback(token_id, amount),
+            );
+    }
+
+    #[private]
+    pub fn withdraw_callback(&mut self, token_id: AccountId, amount: U128) {
+        require!(is_promise_success(), "Error transfer");
+
+        self.decrease_user_deposit(token_id, signer_account_id(), amount);
+    }
 }
 
 #[cfg(test)]
@@ -348,7 +349,7 @@ mod tests {
 
     use near_sdk::test_utils::test_env::{alice, bob};
     use near_sdk::test_utils::VMContextBuilder;
-    use near_sdk::{testing_env, VMContext};
+    use near_sdk::{FunctionError, testing_env, VMContext};
 
     fn get_context(is_view: bool) -> VMContext {
         VMContextBuilder::new()
@@ -367,6 +368,7 @@ mod tests {
         //buy_token_price: 1.01 * 10^24
         //sell_token_price: 4.2 * 10^24
         Position {
+            position_id: 0,
             active: true,
             p_type: PositionType::Long,
             sell_token: "usdc.nearland.testnet".parse().unwrap(),
@@ -385,6 +387,7 @@ mod tests {
         //buy_token_price: 3000 * 10^24
         //sell_token_price: 4100 * 10^24
         Position {
+            position_id: 0,
             active: true,
             p_type: PositionType::Long,
             sell_token: "usdc.nearland.testnet".parse().unwrap(),

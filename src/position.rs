@@ -2,6 +2,12 @@ use crate::ratio::Ratio;
 use crate::*;
 use std::fmt;
 
+use near_sdk::json_types::U128;
+use near_sdk::serde::{Deserialize, Serialize};
+use near_sdk::{AccountId, Balance};
+
+pub const REF_FINANCE: &str = "ref-finance-101.testnet";
+
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
 #[serde(crate = "near_sdk::serde")]
 #[derive(Debug)]
@@ -28,5 +34,31 @@ impl ViewPosition {
 impl fmt::Display for ViewPosition {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{:?}", self)
+    }
+}
+
+impl Position {
+    pub fn new(
+        position_id: u128,
+        active: bool,
+        p_type: PositionType,
+        sell_token: AccountId,
+        buy_token: AccountId,
+        collateral_amount: Balance,
+        buy_token_price: Balance,
+        sell_token_price: Balance,
+        leverage: u128,
+    ) -> Position {
+        Position {
+            position_id,
+            active,
+            p_type,
+            sell_token,
+            buy_token,
+            collateral_amount,
+            buy_token_price,
+            sell_token_price,
+            leverage,
+        }
     }
 }

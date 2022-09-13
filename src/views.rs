@@ -2,7 +2,6 @@ use crate::position::ViewPosition;
 use crate::ratio::Ratio;
 use crate::*;
 use near_sdk::near_bindgen;
-use std::borrow::Borrow;
 use std::str::FromStr;
 
 const USDT_MARKET: &str = "usdt_market.qa.nearlend.testnet";
@@ -50,6 +49,10 @@ impl Contract {
                 Ratio::from_str("0.11").unwrap(),
             ),
         ];
+    }
+
+    pub fn view_pisition_amount(&self) -> u8 {
+        self.positions.len() as u8
     }
 }
 

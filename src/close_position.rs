@@ -1,6 +1,6 @@
 use crate::utils::ext_token;
-use crate::{Contract, ContractExt};
 use crate::BigDecimal;
+use crate::{Contract, ContractExt};
 
 use near_sdk::json_types::U128;
 use near_sdk::serde::{Deserialize, Serialize};
@@ -56,7 +56,8 @@ impl Contract {
         // TODO Receive min_amount_out (from UI?)
         let min_amount_out = U128(1u128);
         // TODO Better calculus
-        let borrowed_amount = BigDecimal::from(position.collateral_amount) * BigDecimal::from(position.leverage);
+        let borrowed_amount =
+            BigDecimal::from(position.collateral_amount) * BigDecimal::from(position.leverage);
         self.execute_position(
             position.sell_token,
             borrowed_amount.into(),
@@ -78,7 +79,7 @@ impl Contract {
             token_in: token_in.clone(),
             amount_in: Some(amount_in),
             token_out,
-            min_amount_out: min_amount_out,
+            min_amount_out,
         })];
 
         let action = TokenReceiverMessage::Execute {
@@ -86,14 +87,14 @@ impl Contract {
             actions,
         };
 
-        ext_token::ext(token_in.clone())
+        ext_token::ext(token_in)
             .with_static_gas(Gas(3))
             .with_attached_deposit(1)
             .ft_transfer_call(
                 REF_FINANCE.parse().unwrap(),
                 amount_in,
                 Some("Deposit tokens".to_string()),
-                format!("{}", near_sdk::serde_json::to_string(&action).unwrap()),
+                near_sdk::serde_json::to_string(&action).unwrap(),
             )
             .into()
         // TODO handle successful swap

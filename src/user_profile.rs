@@ -10,9 +10,11 @@ pub struct UserProfile {
 }
 
 impl UserProfile {
-    pub fn new() -> UserProfile {
+    pub fn new(market_id: AccountId, balance: Balance) -> UserProfile {
+        let mut user_deposits = HashMap::new();
+        user_deposits.insert(market_id, balance);
         UserProfile {
-            account_deposits: Default::default(),
+            account_deposits: user_deposits,
         }
     }
 }

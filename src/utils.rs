@@ -1,6 +1,4 @@
-use near_sdk::{
-    ext_contract, json_types::U128, AccountId
-};
+use near_sdk::{ext_contract, json_types::U128, AccountId};
 
 pub type WBalance = U128;
 

@@ -1,17 +1,19 @@
 extern crate core;
 
+mod close_position;
 mod common;
 mod position;
 mod ratio;
 mod user_profile;
 mod utils;
 mod views;
-mod close_position;
 
 const NO_DEPOSIT: u128 = 0;
 const GAS_FOR_BORROW: Gas = Gas(180_000_000_000_000);
 const WNEAR_MARKET: &str = "wnear_market.qa.nearlend.testnet";
 
+use std::ascii::escape_default;
+use std::ops::Deref;
 use crate::common::Events;
 use crate::user_profile::UserProfile;
 use crate::utils::WBalance;
@@ -24,6 +26,7 @@ use near_sdk::{
     env, ext_contract, is_promise_success, log, near_bindgen, require, AccountId, Balance,
     BorshStorageKey, Gas, PromiseOrValue, PromiseResult,
 };
+use std::ops::Mul;
 
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
 #[serde(crate = "near_sdk::serde")]
@@ -102,7 +105,6 @@ impl Contract {
         }
 
         Self {
-            owner_id,
             total_positions: 0,
             positions: LookupMap::new(StorageKeys::Positions),
             user_profiles: UnorderedMap::new(StorageKeys::UserProfiles),
@@ -174,23 +176,27 @@ impl Contract {
 
         // if its not present in our structure insert users profile
         if self.user_profiles.get(&user_id).is_none() {
-            self.user_profiles.insert(&user_id, &UserProfile::new());
+            self.user_profiles.insert(&user_id, &UserProfile::new(market_id.clone(), 0));
         }
 
-        let mut user_profile: UserProfile = self.get_user_profile(user_id);
+        let mut user_profile: UserProfile = self.get_user_profile(user_id.clone());
 
-        // if user hasn't deposited yet
+        // if user has UserProfile, but deposited in different token
         if user_profile.account_deposits.get(&market_id).is_none() {
             user_profile
                 .account_deposits
                 .insert(market_id, Balance::from(amount));
+            self.user_profiles.insert(&user_id, &user_profile);
         } else {
+            let increased_balance = amount.0 + *user_profile.account_deposits.get(&market_id).unwrap();
             user_profile.account_deposits.insert(
                 market_id.clone(),
-                user_profile.account_deposits.get(&market_id).unwrap() + Balance::from(amount),
+                increased_balance,
             );
+            self.user_profiles.insert(&user_id, &user_profile);
         }
     }
+
 
     pub fn decrease_user_deposit(
         &mut self,
@@ -244,10 +250,142 @@ impl Contract {
         // for some user that borrowed (could edit borrow_buy_token signature )
     }
 
-    #[private]
-    pub fn calculate_pnl(&self, position: Position, borrow_fee: Balance, swap_fee: Balance) -> Balance {
-        let borrow_amount = position.buy_token_price * position.leverage - position.collateral_amount;
-        position.buy_token_price - position.buy_token_price * position.leverage -
-            borrow_amount * borrow_fee - borrow_amount * swap_fee
+    pub fn calculate_pnl(
+        &self,
+        buy_token_price: WRatio,
+        sell_token_price: WRatio,
+        collateral_amount: WRatio,
+        leverage: U128,
+    ) -> WRatio {
+        let borrow_amount = buy_token_price.0 * leverage.0 - buy_token_price.0;
+        let result = Ratio::from(collateral_amount.0 * leverage.0) / Ratio::from(10_u128.pow(24))
+            - Ratio::from(borrow_amount) / Ratio::from(sell_token_price.0)
+            - Ratio::from(collateral_amount.0) / Ratio::from(10_u128.pow(24));
+        WRatio::from(result)
+    }
+
+    pub fn get_liquidation_price(
+        &self,
+        sell_token_amount: U128,
+        sell_token_price: U128,
+        buy_token_price: U128,
+        leverage: U128,
+        borrow_fee: U128,
+        swap_fee: U128,
+    ) -> WRatio {
+        let collateral_amount = Ratio::from(sell_token_amount.0) * Ratio::from(sell_token_price.0);
+        let buy_amount =
+            collateral_amount.mul(Ratio::from(leverage.0)) / Ratio::from(buy_token_price.0);
+        let borrow_amount = Ratio::from(leverage.0 - 10_u128.pow(24)) * collateral_amount
+            / Ratio::from(10_u128.pow(24));
+        //  /Ratio::from(10_u128.pow(7) - 0.001%~10^1; 100~10^7
+        let fee_amount = (borrow_amount * Ratio::from(swap_fee.0)
+            + borrow_amount * Ratio::from(borrow_fee.0))
+            / Ratio::from(10_u128.pow(7));
+
+        let liquidation_price = if collateral_amount > fee_amount {
+            Ratio::from(buy_token_price.0) - (collateral_amount - fee_amount) / buy_amount
+        } else {
+            Ratio::from(buy_token_price.0) + (fee_amount - collateral_amount) / buy_amount
+        };
+        WRatio::from(liquidation_price)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use near_sdk::test_utils::test_env::{alice, bob};
+    use near_sdk::test_utils::VMContextBuilder;
+    use near_sdk::{testing_env, VMContext};
+
+    fn get_context(is_view: bool) -> VMContext {
+        VMContextBuilder::new()
+            .current_account_id(alice())
+            .signer_account_id(bob())
+            .predecessor_account_id("token_near".parse().unwrap())
+            .block_index(1)
+            .block_timestamp(1)
+            .is_view(is_view)
+            .build()
+    }
+
+    fn get_position() -> Position {
+        //amount: 1000 * 10^24 USDT
+        //leverage: 2.4 * 10^24
+        //buy_token_price: 1.01 * 10^24
+        //sell_token_price: 4.2 * 10^24
+        Position {
+            active: true,
+            p_type: PositionType::Long,
+            sell_token: "usdc.nearland.testnet".parse().unwrap(),
+            buy_token: "wnear.nearland.testnet".parse().unwrap(),
+            collateral_amount: 1000 * 10_u128.pow(24),
+            buy_token_price: 42 * 10_u128.pow(23),
+            sell_token_price: 45 * 10_u128.pow(23),
+            leverage: 24 * 10_u128.pow(23),
+        }
+    }
+
+    fn get_position_examples() -> Position {
+        //amount: 1 * 10^24 USDT
+        //leverage: 3 * 10^24
+        //buy_token_price: 3000 * 10^24
+        //sell_token_price: 4100 * 10^24
+        Position {
+            active: true,
+            p_type: PositionType::Long,
+            sell_token: "usdc.nearland.testnet".parse().unwrap(),
+            buy_token: "wnear.nearland.testnet".parse().unwrap(),
+            collateral_amount: 10_u128.pow(24),
+            buy_token_price: 3000 * 10_u128.pow(24),
+            sell_token_price: 4100 * 10_u128.pow(24),
+            leverage: 3,
+        }
+    }
+
+    #[test]
+    fn test_pnl() {
+        let context = get_context(false);
+        testing_env!(context);
+        let markets: Vec<AccountId> = vec![
+            "usdc_market.nearland.testnet".parse().unwrap(),
+            "wnear_market.nearland.testnet".parse().unwrap(),
+        ];
+        let contract = Contract::new(markets);
+
+        let position = get_position_examples();
+        let result = contract.calculate_pnl(
+            WRatio::from(position.buy_token_price),
+            WRatio::from(position.sell_token_price),
+            WRatio::from(position.collateral_amount),
+            WRatio::from(position.leverage),
+        );
+
+        assert_eq!(result.0, 536585365853658536585366);
+    }
+
+    #[test]
+    fn test_liquidation_price() {
+        let context = get_context(false);
+        testing_env!(context);
+        let markets: Vec<AccountId> = vec![
+            "usdc_market.nearland.testnet".parse().unwrap(),
+            "wnear_market.nearland.testnet".parse().unwrap(),
+        ];
+        let contract = Contract::new(markets);
+        let position = get_position();
+
+        let result = contract.get_liquidation_price(
+            WRatio::from(1),
+            WRatio::from(position.sell_token_price),
+            WRatio::from(position.buy_token_price),
+            WRatio::from(position.leverage),
+            U128(5 * 10_u128.pow(6)),
+            U128(3 * 10_u128.pow(1)),
+        );
+
+        assert_eq!(result, U128(215745429394269796120481938246454935552));
     }
 }

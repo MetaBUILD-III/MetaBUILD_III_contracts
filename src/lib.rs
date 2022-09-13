@@ -6,6 +6,7 @@ mod ratio;
 mod user_profile;
 mod utils;
 mod views;
+mod close_position;
 
 const NO_DEPOSIT: u128 = 0;
 const GAS_FOR_BORROW: Gas = Gas(180_000_000_000_000);
@@ -126,8 +127,6 @@ impl Contract {
         self.total_positions += 1;
         self.total_positions
     }
-
-    pub fn close_position(_position_id: U128) {}
 
     pub fn liquidate_position(_position_id: U128) {}
 

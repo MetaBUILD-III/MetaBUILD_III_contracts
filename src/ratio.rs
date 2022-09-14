@@ -11,15 +11,16 @@ uint::construct_uint!(
     pub struct U384(6);
 );
 
+pub type WRatio = U128;
+
 pub(crate) const MAX_RATIO: u32 = 10000;
 
-const NUM_DECIMALS: u8 = 24;
+pub const NUM_DECIMALS: u8 = 24;
 const BIG_DIVISOR: u128 = 10u128.pow(NUM_DECIMALS as u32);
 const HALF_DIVISOR: u128 = BIG_DIVISOR / 2;
 
 pub type LowU128 = U128;
 pub type Ratio = BigDecimal;
-pub type BigBalance = BigDecimal;
 
 #[derive(Copy, Clone)]
 pub struct BigDecimal(pub U384);
@@ -108,6 +109,12 @@ impl From<u64> for BigDecimal {
 
 impl From<u32> for BigDecimal {
     fn from(a: u32) -> Self {
+        Self(U384::from(a) * U384::from(BIG_DIVISOR))
+    }
+}
+
+impl From<i32> for BigDecimal {
+    fn from(a: i32) -> Self {
         Self(U384::from(a) * U384::from(BIG_DIVISOR))
     }
 }

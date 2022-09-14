@@ -1,6 +1,6 @@
 use crate::*;
 
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Debug)]
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Debug, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct MarketData {
     pub total_supplies: WBalance,
@@ -96,8 +96,7 @@ impl Contract {
         let admin_fee = (self.exchange_fee + self.referral_fee) as u128;
         let admin_fee_trade = self.admin_trade_fee(trade_fee, admin_fee);
         if self.referral_fee + self.exchange_fee > 0 {
-            let mut fee_token = 0_u128;
-            fee_token = admin_fee * self.referral_fee as u128
+            let fee_token = admin_fee * self.referral_fee as u128
                 / (self.referral_fee + self.exchange_fee) as u128;
             exchange_fee = admin_fee_trade - fee_token
         }

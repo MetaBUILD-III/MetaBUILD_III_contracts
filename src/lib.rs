@@ -1,24 +1,21 @@
 extern crate core;
-
+mod close_position;
 mod common;
 mod fee;
+mod open_position;
 mod position;
+mod price;
 mod ratio;
 mod user_profile;
 mod utils;
 mod views;
-mod price;
-mod open_position;
-mod close_position;
 
 const NO_DEPOSIT: u128 = 0;
 const GAS_FOR_BORROW: Gas = Gas(180_000_000_000_000);
 const WNEAR_MARKET: &str = "wnear_market.qa.nearlend.testnet";
 
-use std::collections::HashMap;
-use std::hash::Hash;
-use crate::fee::MarketData;
 use crate::common::Events;
+use crate::fee::MarketData;
 use crate::ratio::*;
 use crate::user_profile::UserProfile;
 use crate::utils::{ext_token, WBalance};
@@ -27,6 +24,7 @@ use std::collections::HashMap;
 use std::hash::Hash;
 use std::str::FromStr;
 
+use crate::price::Price;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LookupMap, LookupSet, UnorderedMap, Vector};
 use near_sdk::env::{current_account_id, signer_account_id};
@@ -37,7 +35,6 @@ use near_sdk::{
     BorshStorageKey, Gas, PromiseOrValue, PromiseResult,
 };
 use std::ops::Mul;
-use crate::price::Price;
 
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
 #[serde(crate = "near_sdk::serde")]
@@ -66,9 +63,6 @@ pub struct Position {
 #[near_bindgen]
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct Contract {
-    /// Account of the owner.
-    owner_id: AccountId,
-
     /// number of all positions
     total_positions: u128,
 
@@ -83,8 +77,29 @@ pub struct Contract {
     /// "wnear_market.qa.nearlend.testnet", "usdt_market.qa.nearlend.testnet"
     markets: LookupSet<AccountId>,
 
-    /// market ID -> Price
+    /// token ID -> Price
     pub prices: LookupMap<AccountId, Price>,
+
+    /// token id -> market id
+    tokens_markets: LookupMap<AccountId, AccountId>,
+
+    /// pool fee
+    total_fee: u32,
+
+    /// Exchange fee, that goes to exchange itself (managed by governance).
+    exchange_fee: u32,
+
+    /// Referral fee, that goes to referrer in the call.
+    referral_fee: u32,
+
+    /// List of all the pools.
+    /// data about markets
+    /// first AccountId -> Token
+    /// second AccountId -> Market
+    markets_data: LookupMap<AccountId, LookupMap<AccountId, MarketData>>,
+
+    /// Pool which should be used for swapping.
+    pool_id: u64,
 }
 
 impl Default for Contract {
@@ -100,7 +115,8 @@ pub enum StorageKeys {
     Markets,
     Prices,
     MarketsData,
-    Vector
+    TokenMarkets,
+    Vector,
 }
 
 #[ext_contract(underlying_token)]
@@ -122,7 +138,6 @@ trait MarketInterface {
     fn view_market_data(&self, ft_balance: WBalance) -> MarketData;
 }
 
-
 #[near_bindgen]
 impl Contract {
     #[init]
@@ -142,6 +157,12 @@ impl Contract {
             user_profiles: UnorderedMap::new(StorageKeys::UserProfiles),
             markets: lookup_markets,
             prices: LookupMap::new(StorageKeys::Prices),
+            tokens_markets: lookup_tm,
+            total_fee: 0,
+            exchange_fee: 0,
+            referral_fee: 0,
+            markets_data: LookupMap::new(StorageKeys::MarketsData),
+            pool_id: 0,
         }
     }
 
@@ -229,7 +250,7 @@ impl Contract {
 
         assert!(self.user_profiles.get(&user_id).is_some());
 
-        let mut user_profile: UserProfile = self.get_user_profile(user_id);
+        let mut user_profile: UserProfile = self.get_user_profile(user_id.clone());
 
         // if user hasn't deposited yet
         let user_deposit_balance = user_profile
@@ -362,7 +383,7 @@ mod tests {
 
     use near_sdk::test_utils::test_env::{alice, bob};
     use near_sdk::test_utils::VMContextBuilder;
-    use near_sdk::{FunctionError, testing_env, VMContext};
+    use near_sdk::{testing_env, VMContext};
 
     fn get_context(is_view: bool) -> VMContext {
         VMContextBuilder::new()
@@ -396,7 +417,7 @@ mod tests {
 
     fn get_position_examples() -> Position {
         //amount: 1 * 10^24 USDT
-        //leverage: 3 * 10^24
+        //leverage: 3
         //buy_token_price: 3000 * 10^24
         //sell_token_price: 4100 * 10^24
         Position {
@@ -437,7 +458,7 @@ mod tests {
             WRatio::from(position.leverage),
         );
 
-        assert_eq!(result.0, 536585365853658536585366);
+        assert_eq!(WRatio::from(result.1), U128(536585365853658536585366));
     }
 
     #[test]
@@ -468,5 +489,4 @@ mod tests {
 
         assert_eq!(result, U128(215745429394269796120481938246454935552));
     }
-
 }

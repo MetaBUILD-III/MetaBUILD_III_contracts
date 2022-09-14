@@ -10,11 +10,17 @@ impl Contract {
         buy_token: AccountId,
         leverage: U128,
     ) -> PromiseOrValue<U128> {
-        require!(self.user_profiles.get(&env::signer_account_id()).is_some(), "User have to deposit first");
+        require!(
+            self.user_profiles.get(&env::signer_account_id()).is_some(),
+            "User have to deposit first"
+        );
 
         let user_profile = self.user_profiles.get(&env::signer_account_id()).unwrap();
 
-        require!(user_profile.account_deposits.get(&sell_token).is_some(), "User don't have deposits in sell token");
+        require!(
+            user_profile.account_deposits.get(&sell_token).is_some(),
+            "User don't have deposits in sell token"
+        );
 
         require!(*user_profile.account_deposits.get(&sell_token).unwrap() >=
                    sell_token_amount.0,
@@ -71,6 +77,3 @@ impl Contract {
         self.total_positions += 1;
     }
 }
-
-
-

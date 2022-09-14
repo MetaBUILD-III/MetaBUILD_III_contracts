@@ -1,10 +1,13 @@
-use crate::utils::ext_token;
-use crate::BigDecimal;
+use crate::*;
 use crate::{Contract, ContractExt};
 
+use near_sdk::env::{current_account_id, signer_account_id};
 use near_sdk::json_types::U128;
 use near_sdk::serde::{Deserialize, Serialize};
-use near_sdk::{near_bindgen, AccountId, Balance, Gas, PromiseOrValue};
+use near_sdk::{
+    ext_contract, is_promise_success, near_bindgen, require, AccountId, Balance, Gas,
+    PromiseOrValue,
+};
 
 pub const REF_FINANCE: &str = "ref-finance-101.testnet";
 #[ext_contract(ext_self)]
@@ -53,9 +56,20 @@ enum TokenReceiverMessage {
 
 #[near_bindgen]
 impl Contract {
+    /// calculate all fees
+    /// execute swap of sell token to buy token
+    /// deduce all fees from the resulting amount of buy token
+    /// deduce profit fee = 10% (if position is profitable)
     pub fn close_position(&mut self, position_id: U128) -> PromiseOrValue<Balance> {
-        let position = self.get_position(position_id);
-        // TODO check for position owner
+        let positions = self
+            .positions
+            .get(&signer_account_id())
+            .unwrap_or_else(|| panic!("Positions for account: {} not found.", signer_account_id()));
+        let position = positions
+            .get(&position_id.0)
+            .unwrap_or_else(|| panic!("Position with id: {} not found.", position_id.0));
+
+        require!(position.active, "Position not active.");
 
         // TODO Receive min_amount_out (from UI?)
         let min_amount_out = U128::from( Ratio::from(U128::from(position.borrow_amount)) * self.calculate_xrate(position.buy_token.clone(), position.sell_token.clone()));
@@ -64,8 +78,7 @@ impl Contract {
         self.execute_position(position.clone(), min_amount_out)
     }
 
-    // TODO hide from near bindgen
-    pub fn execute_position(
+    fn execute_position(
         &mut self,
         position: Position,
         min_amount_out: U128,

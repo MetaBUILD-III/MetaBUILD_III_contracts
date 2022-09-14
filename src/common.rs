@@ -1,7 +1,6 @@
+use crate::*;
 use std::fmt;
 use std::fmt::Formatter;
-use crate::*;
-
 
 pub enum Events {
     BorrowFailedOnMarket(Balance),

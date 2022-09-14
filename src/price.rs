@@ -1,6 +1,5 @@
-use crate::*;
 use crate::utils::Digits;
-
+use crate::*;
 
 #[near_bindgen]
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
@@ -22,7 +21,6 @@ impl Price {
         }
     }
 }
-
 
 #[near_bindgen]
 impl Contract {

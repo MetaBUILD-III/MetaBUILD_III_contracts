@@ -4,8 +4,6 @@ use crate::*;
 use near_sdk::near_bindgen;
 use std::str::FromStr;
 
-const USDT_MARKET: &str = "usdt_market.qa.nearlend.testnet";
-
 #[near_bindgen]
 impl Contract {
     pub fn view_balance(&self, user: AccountId, market: AccountId) -> WBalance {
@@ -66,9 +64,18 @@ mod tests {
             AccountId::from_str("usdt.qa.nearlend.testnet").unwrap(),
         );
 
-        let contract = Contract::new(vec![
-            AccountId::from_str("usdt.qa.nearlend.testnet").unwrap()
-        ]);
+        let token_markets: Vec<(AccountId, AccountId)> = vec![
+            (
+                "usdt.qa.nearlend.testnet".parse().unwrap(),
+                "usdt_market.qa.nearlend.testnet".parse().unwrap(),
+            ),
+            (
+                "wnear.nearland.testnet".parse().unwrap(),
+                "wnear_market.nearland.testnet".parse().unwrap(),
+            ),
+        ];
+
+        let contract = Contract::new(token_markets);
 
         let context = VMContextBuilder::new()
             .signer_account_id(owner_account.clone())
@@ -88,9 +95,18 @@ mod tests {
             AccountId::from_str("usdt.qa.nearlend.testnet").unwrap(),
         );
 
-        let contract = Contract::new(vec![
-            AccountId::from_str("usdt.qa.nearlend.testnet").unwrap()
-        ]);
+        let token_markets: Vec<(AccountId, AccountId)> = vec![
+            (
+                "usdt.qa.nearlend.testnet".parse().unwrap(),
+                "usdt_market.qa.nearlend.testnet".parse().unwrap(),
+            ),
+            (
+                "wnear.nearland.testnet".parse().unwrap(),
+                "wnear_market.nearland.testnet".parse().unwrap(),
+            ),
+        ];
+
+        let contract = Contract::new(token_markets);
 
         let context = VMContextBuilder::new()
             .signer_account_id(owner_account.clone())

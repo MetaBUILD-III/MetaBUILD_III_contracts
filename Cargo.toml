@@ -1,7 +1,7 @@
 [package]
 name = "mtrading"
 version = "0.0.1"
-authors = ["<mark.ts@blaize.tech>", "<tymofii.s@blaize.tech>", "<dmytro.sh@blaize.tech>"]
+authors = ["mark.ts@blaize.tech", "tymofii.s@blaize.tech"]
 edition = "2021"
 
 [lib]

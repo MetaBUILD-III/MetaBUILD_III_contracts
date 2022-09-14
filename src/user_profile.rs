@@ -1,7 +1,7 @@
 use crate::*;
 use std::collections::HashMap;
 
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Debug)]
 #[serde(crate = "near_sdk::serde")]
 #[derive(Default)]
 pub struct UserProfile {

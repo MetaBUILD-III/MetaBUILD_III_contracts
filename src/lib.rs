@@ -19,14 +19,14 @@ use crate::fee::MarketData;
 use crate::ratio::*;
 use crate::user_profile::UserProfile;
 use crate::utils::{ext_token, WBalance};
-use core::borrow;
+
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::str::FromStr;
 
 use crate::price::Price;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::collections::{LookupMap, LookupSet, UnorderedMap, Vector};
+use near_sdk::collections::{LookupMap, LookupSet, UnorderedMap};
 use near_sdk::env::{current_account_id, signer_account_id};
 use near_sdk::json_types::U128;
 use near_sdk::serde::{Deserialize, Serialize};
@@ -34,7 +34,7 @@ use near_sdk::{
     env, ext_contract, is_promise_success, log, near_bindgen, require, AccountId, Balance,
     BorshStorageKey, Gas, PromiseOrValue, PromiseResult,
 };
-use std::ops::Mul;
+
 
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
 #[serde(crate = "near_sdk::serde")]
@@ -233,7 +233,7 @@ impl Contract {
                 amount.0 + *user_profile.account_deposits.get(&market_id).unwrap();
             user_profile
                 .account_deposits
-                .insert(market_id.clone(), increased_balance);
+                .insert(market_id, increased_balance);
         }
         self.user_profiles.insert(&user_id, &user_profile);
     }
@@ -302,7 +302,7 @@ impl Contract {
         let borrow_amount =
             Ratio::from(buy_token_price) * Ratio::from(leverage.0) - Ratio::from(buy_token_price);
         let c_a = Ratio::from(collateral_amount) * Ratio::from(leverage.0);
-        let div_value = Ratio::from(borrow_amount) / Ratio::from(sell_token_price)
+        let div_value = borrow_amount / Ratio::from(sell_token_price)
             + Ratio::from(collateral_amount);
         let profit: bool;
         let result = if c_a > div_value {
@@ -315,6 +315,7 @@ impl Contract {
         (profit, result)
     }
 
+    #[allow(unused_variables)]
     pub fn get_liquidation_price(
         &self,
         sell_token_amount: U128,
@@ -324,21 +325,21 @@ impl Contract {
         borrow_fee: U128,
         swap_fee: U128,
     ) -> WRatio {
-        // let sell_token = AccountId::new_unchecked("usdt.qa.nearlend.testnet".to_owned());
-        // let sell_token_price = self.get_price_by_token(sell_token);
+        let sell_token = AccountId::new_unchecked("usdt.qa.nearlend.testnet".to_owned());
+        let sell_token_price = self.get_price_by_token(sell_token);
 
-        // let buy_token = AccountId::new_unchecked("wnear.qa.nearlend.testnet".to_owned());
-        // let buy_token_price = self.get_price_by_token(buy_token);
-        // log!("buy_token_price {}", buy_token_price.0);
+        let buy_token = AccountId::new_unchecked("wnear.qa.nearlend.testnet".to_owned());
+        let buy_token_price = self.get_price_by_token(buy_token);
+        log!("buy_token_price {}", buy_token_price.0);
 
-        // let collateral_usd = BigDecimal::from(sell_token_amount) * BigDecimal::from(sell_token_price);
-        // let buy_amount = collateral_usd / BigDecimal::from(buy_token_price);
+        let collateral_usd = BigDecimal::from(sell_token_amount) * BigDecimal::from(sell_token_price);
+        let buy_amount = collateral_usd / BigDecimal::from(buy_token_price);
 
-        // let fee = Ratio::from_str("0.057").unwrap();
-        // let borrow_amount = collateral_usd * BigDecimal::from(leverage);
+        let fee = Ratio::from_str("0.057").unwrap();
+        let borrow_amount = collateral_usd * BigDecimal::from(leverage);
 
-        // (BigDecimal::from(buy_token_price) -  (collateral_usd - fee * borrow_amount) / buy_amount).into()
-        Ratio::from_str("2.41").unwrap().into()
+        (BigDecimal::from(buy_token_price) -  (collateral_usd - fee * borrow_amount) / buy_amount).into()
+        // Ratio::from_str("2.41").unwrap().into()
     }
 
     #[payable]

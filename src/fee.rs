@@ -84,10 +84,10 @@ impl Contract {
         let market = self.markets_data.get(&token_id).unwrap_or_else(|| {
             panic!("Market by token not found");
         });
-        let market_data = market.get(&market_id).unwrap_or_else(|| {
+        
+        market.get(&market_id).unwrap_or_else(|| {
             panic!("Market data by market id not found");
-        });
-        market_data
+        })
     }
 
     pub fn exchange_fee(&self, amount: Balance) -> Balance {

@@ -20,6 +20,7 @@ impl Contract {
         }
     }
 
+    #[allow(unused_variables)]
     pub fn view_user_positions(&self, market: AccountId, user: AccountId) -> Vec<ViewPosition> {
         if self.positions.get(&user).is_none() {
             return vec![];
@@ -40,8 +41,8 @@ impl Contract {
                     active: position.active,
                     position_id: position.position_id.into(),
                     p_type: position.p_type.clone(),
-                    amount: borrow_amount.into(),
-                    price: U128::from(price),
+                    amount: borrow_amount,
+                    price,
                     fee: Ratio::from_str("0.3").unwrap().into(),
                     sell_token: position.sell_token.clone(),
                     buy_token: position.buy_token.clone(),

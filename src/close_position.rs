@@ -145,7 +145,7 @@ impl Contract {
         // self.decrease_user_deposit(market_id.clone(), signer_account_id(), U128(fee));
 
         let sell_token_price = self.get_price_by_token(position.sell_token.clone());
-        let pnl = self.calculate_pnl(
+        let _pnl = self.calculate_pnl(
             U128(position.buy_token_price),
             sell_token_price,
             U128(position.collateral_amount),
@@ -186,8 +186,8 @@ impl Contract {
 mod tests {
     use super::*;
 
-    use crate::StorageKeys::MarketsData;
-    use near_sdk::test_utils::test_env::{alice, bob};
+    
+    use near_sdk::test_utils::test_env::{alice};
     use near_sdk::test_utils::VMContextBuilder;
     use near_sdk::{testing_env, VMContext};
 
@@ -212,10 +212,10 @@ mod tests {
         let market2: AccountId = "wnear_market.qa.nearland.testnet".parse().unwrap();
 
         let token_markets: Vec<(AccountId, AccountId)> = vec![
-            (token1.clone(), market1.clone()),
-            (token2.clone(), market2.clone()),
+            (token1.clone(), market1),
+            (token2, market2),
         ];
-        let mut contract = Contract::new(token_markets.clone());
+        let mut contract = Contract::new(token_markets);
         let position_id = U128(1);
 
         //user deposit amount
@@ -253,7 +253,7 @@ mod tests {
         market.insert(&token1.clone(), &market_data);
         contract.markets_data.insert(&token1, &market);
 
-        let mut position = contract.get_position(position_id.clone());
+        let mut position = contract.get_position(position_id);
 
         //set all fee's
         contract.set_exchange_fee(U128(2 * 10_u128.pow(24)));

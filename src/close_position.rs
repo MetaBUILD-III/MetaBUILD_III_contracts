@@ -301,7 +301,7 @@ mod tests {
 
         //finish check
         let position = contract.get_position(U128(1));
-        assert_eq!(false, position.active);
+        assert!(!position.active);
 
         let user_profile = contract.user_profiles.get(&alice()).unwrap();
         let account_deposit = user_profile.account_deposits.get(&token1).unwrap();

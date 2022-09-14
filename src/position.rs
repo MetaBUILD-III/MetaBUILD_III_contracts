@@ -27,6 +27,7 @@ impl fmt::Display for ViewPosition {
 }
 
 impl Position {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         position_id: u128,
         active: bool,

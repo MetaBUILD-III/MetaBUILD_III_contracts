@@ -168,7 +168,12 @@ impl Contract {
 
     #[private]
     pub fn get_position(&self, position_id: U128) -> Position {
-        self.positions.get(&env::signer_account_id()).unwrap().get(&position_id.0).unwrap().clone()
+        self.positions
+            .get(&env::signer_account_id())
+            .unwrap()
+            .get(&position_id.0)
+            .unwrap()
+            .clone()
     }
 
     pub fn liquidate_position(_position_id: U128) {}
@@ -213,26 +218,22 @@ impl Contract {
 
         // if its not present in our structure insert users profile
         if self.user_profiles.get(&user_id).is_none() {
-            self.user_profiles.insert(
-                &user_id,
-                &UserProfile::new(market_id.clone(), 0u128),
-            );
+            self.user_profiles
+                .insert(&user_id, &UserProfile::new(market_id.clone(), 0u128));
         }
 
         let mut user_profile: UserProfile = self.get_user_profile(user_id.clone());
 
         // if user has UserProfile, but deposited in different token
         if user_profile.account_deposits.get(&market_id).is_none() {
+            user_profile.account_deposits.insert(market_id, amount.0);
+            self.user_profiles.insert(&user_id, &user_profile);
+        } else {
+            let increased_balance =
+                amount.0 + *user_profile.account_deposits.get(&market_id).unwrap();
             user_profile
                 .account_deposits
-                .insert(market_id, amount.0);
-            self.user_profiles.insert(&user_id, &user_profile);
-        } 
-        else {
-        let increased_balance = amount.0 + *user_profile.account_deposits.get(&market_id).unwrap();
-        user_profile
-            .account_deposits
-            .insert(market_id.clone(), increased_balance);
+                .insert(market_id.clone(), increased_balance);
         }
         self.user_profiles.insert(&user_id, &user_profile);
     }
@@ -325,17 +326,17 @@ impl Contract {
     ) -> WRatio {
         // let sell_token = AccountId::new_unchecked("usdt.qa.nearlend.testnet".to_owned());
         // let sell_token_price = self.get_price_by_token(sell_token);
-        
+
         // let buy_token = AccountId::new_unchecked("wnear.qa.nearlend.testnet".to_owned());
         // let buy_token_price = self.get_price_by_token(buy_token);
         // log!("buy_token_price {}", buy_token_price.0);
-        
+
         // let collateral_usd = BigDecimal::from(sell_token_amount) * BigDecimal::from(sell_token_price);
         // let buy_amount = collateral_usd / BigDecimal::from(buy_token_price);
-        
+
         // let fee = Ratio::from_str("0.057").unwrap();
         // let borrow_amount = collateral_usd * BigDecimal::from(leverage);
-      
+
         // (BigDecimal::from(buy_token_price) -  (collateral_usd - fee * borrow_amount) / buy_amount).into()
         Ratio::from_str("2.41").unwrap().into()
     }
@@ -411,7 +412,7 @@ mod tests {
             buy_token_price: 101 * 10_u128.pow(22),
             sell_token_price: 45 * 10_u128.pow(23),
             leverage: 24 * 10_u128.pow(23),
-            borrow_amount: 404
+            borrow_amount: 404,
         }
     }
 
@@ -430,7 +431,7 @@ mod tests {
             buy_token_price: 3000 * 10_u128.pow(24),
             sell_token_price: 4100 * 10_u128.pow(24),
             leverage: 3,
-            borrow_amount: 404
+            borrow_amount: 404,
         }
     }
 

@@ -49,7 +49,7 @@ impl Position {
             buy_token_price,
             sell_token_price,
             leverage,
-            borrow_amount
+            borrow_amount,
         }
     }
 }

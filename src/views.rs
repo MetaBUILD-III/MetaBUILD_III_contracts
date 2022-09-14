@@ -26,14 +26,17 @@ impl Contract {
         }
 
         self.positions
-        .get(&user)
-        .unwrap()
-        .values()
-        .map(|position| {
-                let borrow_amount = U128::from(Ratio::from(U128::from(position.collateral_amount)) * Ratio::from(U128::from(position.leverage)));
+            .get(&user)
+            .unwrap()
+            .values()
+            .map(|position| {
+                let borrow_amount = U128::from(
+                    Ratio::from(U128::from(position.collateral_amount))
+                        * Ratio::from(U128::from(position.leverage)),
+                );
                 let price = self.get_price_by_token(position.buy_token.clone());
 
-                ViewPosition{
+                ViewPosition {
                     active: position.active,
                     position_id: position.position_id.into(),
                     p_type: position.p_type.clone(),

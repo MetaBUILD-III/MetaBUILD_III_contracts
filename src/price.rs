@@ -33,7 +33,7 @@ impl Contract {
             self.prices.get(&token_id).is_some(),
             "There no such prices set yet"
         );
-        
+
         self.prices.get(&token_id).unwrap().value
     }
 

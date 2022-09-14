@@ -12,7 +12,11 @@ use near_sdk::{
 pub const REF_FINANCE: &str = "ref-finance-101.testnet";
 #[ext_contract(ext_self)]
 trait ContractCallbackInterface {
-    fn swap_callback(&mut self, min_amount_out: WBalance, position: Position) -> PromiseOrValue<Balance>;
+    fn swap_callback(
+        &mut self,
+        min_amount_out: WBalance,
+        position: Position,
+    ) -> PromiseOrValue<Balance>;
 }
 
 /// Single swap action.
@@ -72,7 +76,10 @@ impl Contract {
         require!(position.active, "Position not active.");
 
         // TODO Receive min_amount_out (from UI?)
-        let min_amount_out = U128::from( Ratio::from(U128::from(position.borrow_amount)) * self.calculate_xrate(position.buy_token.clone(), position.sell_token.clone()));
+        let min_amount_out = U128::from(
+            Ratio::from(U128::from(position.borrow_amount))
+                * self.calculate_xrate(position.buy_token.clone(), position.sell_token.clone()),
+        );
         log!("min_amount_out {}", min_amount_out.0);
 
         self.execute_position(position.clone(), min_amount_out)
@@ -96,7 +103,10 @@ impl Contract {
             actions,
         };
 
-        log!("action {}", near_sdk::serde_json::to_string(&action).unwrap());
+        log!(
+            "action {}",
+            near_sdk::serde_json::to_string(&action).unwrap()
+        );
 
         ext_token::ext(position.buy_token.clone())
             .with_static_gas(Gas(3))
@@ -162,7 +172,7 @@ impl Contract {
         let mut positions = self.positions.get(&signer_account_id()).unwrap();
         positions.insert(position.position_id, position);
         self.positions.insert(&signer_account_id(), &positions);
-        
+
         PromiseOrValue::Value(0.into())
     }
 

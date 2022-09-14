@@ -4,7 +4,7 @@ nearcon2022_margin is a Margin trading protocol for Near chain created for Nearc
 
 ## Demo
 * Deposit [here](https://qa.d28ota88qp63q4.amplifyapp.com/faucet)
-* Meargin trading [here](https://main.d2sw81nlmjd2m0.amplifyapp.com)
+* Margin trading [here](https://main.d2sw81nlmjd2m0.amplifyapp.com)
 * Corresponding ref.finance liqudity pool [here](https://testnet.ref.finance/pool/1744)
 
 ## How it works

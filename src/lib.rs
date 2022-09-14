@@ -5,7 +5,7 @@ mod fee;
 mod open_position;
 mod position;
 mod price;
-mod ratio;
+mod big_decimal;
 mod user_profile;
 mod utils;
 mod views;
@@ -16,7 +16,7 @@ const WNEAR_MARKET: &str = "wnear_market.qa.nearlend.testnet";
 
 use crate::common::Events;
 use crate::fee::MarketData;
-use crate::ratio::*;
+use crate::big_decimal::*;
 use crate::user_profile::UserProfile;
 use crate::utils::{ext_token, WBalance};
 
@@ -261,7 +261,7 @@ impl Contract {
                 panic!("User no have balance in token {}:", market_id.clone());
             });
         println!("user_deposit_balance: {}", user_deposit_balance);
-        println!("amount: {}", &Ratio::from(amount));
+        println!("amount: {}", &BigDecimal::from(amount));
         require!(
             user_deposit_balance >= &amount.0,
             "Not enough deposited balance"
@@ -294,16 +294,16 @@ impl Contract {
 
     pub fn calculate_pnl(
         &self,
-        buy_token_price: WRatio,
-        sell_token_price: WRatio,
-        collateral_amount: WRatio,
+        buy_token_price: WBigDecimal,
+        sell_token_price: WBigDecimal,
+        collateral_amount: WBigDecimal,
         leverage: U128,
-    ) -> (bool, Ratio) {
+    ) -> (bool, BigDecimal) {
         let borrow_amount =
-            Ratio::from(buy_token_price) * Ratio::from(leverage.0) - Ratio::from(buy_token_price);
-        let c_a = Ratio::from(collateral_amount) * Ratio::from(leverage.0);
-        let div_value = borrow_amount / Ratio::from(sell_token_price)
-            + Ratio::from(collateral_amount);
+            BigDecimal::from(buy_token_price) * BigDecimal::from(leverage.0) - BigDecimal::from(buy_token_price);
+        let c_a = BigDecimal::from(collateral_amount) * BigDecimal::from(leverage.0);
+        let div_value = borrow_amount / BigDecimal::from(sell_token_price)
+            + BigDecimal::from(collateral_amount);
         let profit: bool;
         let result = if c_a > div_value {
             profit = true;
@@ -324,7 +324,7 @@ impl Contract {
         leverage: U128,
         borrow_fee: U128,
         swap_fee: U128,
-    ) -> WRatio {
+    ) -> WBigDecimal {
         let sell_token = AccountId::new_unchecked("usdt.qa.nearlend.testnet".to_owned());
         let sell_token_price = self.get_price_by_token(sell_token);
 
@@ -335,11 +335,11 @@ impl Contract {
         let collateral_usd = BigDecimal::from(sell_token_amount) * BigDecimal::from(sell_token_price);
         let buy_amount = collateral_usd / BigDecimal::from(buy_token_price);
 
-        let fee = Ratio::from_str("0.057").unwrap();
+        let fee = BigDecimal::from_str("0.057").unwrap();
         let borrow_amount = collateral_usd * BigDecimal::from(leverage);
 
         (BigDecimal::from(buy_token_price) -  (collateral_usd - fee * borrow_amount) / buy_amount).into()
-        // Ratio::from_str("2.41").unwrap().into()
+        // BigDecimal::from_str("2.41").unwrap().into()
     }
 
     #[payable]
@@ -454,13 +454,13 @@ mod tests {
 
         let position = get_position_examples();
         let result = contract.calculate_pnl(
-            WRatio::from(position.buy_token_price),
-            WRatio::from(position.sell_token_price),
-            WRatio::from(position.collateral_amount),
-            WRatio::from(position.leverage),
+            WBigDecimal::from(position.buy_token_price),
+            WBigDecimal::from(position.sell_token_price),
+            WBigDecimal::from(position.collateral_amount),
+            WBigDecimal::from(position.leverage),
         );
 
-        assert_eq!(WRatio::from(result.1), U128(536585365853658536585366));
+        assert_eq!(WBigDecimal::from(result.1), U128(536585365853658536585366));
     }
 
     #[test]
@@ -481,10 +481,10 @@ mod tests {
         let position = get_position();
 
         let result = contract.get_liquidation_price(
-            WRatio::from(1),
-            WRatio::from(position.sell_token_price),
-            WRatio::from(position.buy_token_price),
-            WRatio::from(position.leverage),
+            WBigDecimal::from(1),
+            WBigDecimal::from(position.sell_token_price),
+            WBigDecimal::from(position.buy_token_price),
+            WBigDecimal::from(position.leverage),
             U128(5 * 10_u128.pow(6)),
             U128(3 * 10_u128.pow(1)),
         );

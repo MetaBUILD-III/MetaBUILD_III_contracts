@@ -6,9 +6,9 @@ pub struct MarketData {
     pub total_supplies: WBalance,
     pub total_borrows: WBalance,
     pub total_reserves: WBalance,
-    pub exchange_rate_ratio: WRatio,
-    pub interest_rate_ratio: WRatio,
-    pub borrow_rate_ratio: WRatio,
+    pub exchange_rate_ratio: WBigDecimal,
+    pub interest_rate_ratio: WBigDecimal,
+    pub borrow_rate_ratio: WBigDecimal,
 }
 
 impl Default for MarketData {

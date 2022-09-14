@@ -77,7 +77,7 @@ impl Contract {
 
         // TODO Receive min_amount_out (from UI?)
         let min_amount_out = U128::from(
-            Ratio::from(U128::from(position.borrow_amount))
+            BigDecimal::from(U128::from(position.borrow_amount))
                 * self.calculate_xrate(position.buy_token.clone(), position.sell_token.clone()),
         );
         log!("min_amount_out {}", min_amount_out.0);
@@ -158,7 +158,7 @@ impl Contract {
         );
 
         // if pnl.0 {
-        //     let fee_amount = WRatio::from(position.collateral_amount);
+        //     let fee_amount = WBigDecimal::from(position.collateral_amount);
         //     self.decrease_user_deposit(
         //         position.sell_token.clone(),
         //         signer_account_id(),
@@ -278,19 +278,19 @@ mod tests {
 
         let sell_token_price = contract.get_price_by_token(position.sell_token.clone());
         let pnl = contract.calculate_pnl(
-            WRatio::from(position.buy_token_price),
+            WBigDecimal::from(position.buy_token_price),
             sell_token_price,
-            WRatio::from(position.collateral_amount),
-            WRatio::from(position.leverage),
+            WBigDecimal::from(position.collateral_amount),
+            WBigDecimal::from(position.leverage),
         );
         println!("pnl: {:?}", pnl);
-        let result = *account_deposit - WRatio::from(pnl.1).0;
+        let result = *account_deposit - WBigDecimal::from(pnl.1).0;
         if pnl.0 {
-            let fee_amount = Ratio::from(position.collateral_amount) / Ratio::from(10_u128);
-            contract.decrease_user_deposit(token1.clone(), alice(), WRatio::from(fee_amount));
-            contract.increase_user_deposit(token1.clone(), alice(), WRatio::from(pnl.1));
+            let fee_amount = BigDecimal::from(position.collateral_amount) / BigDecimal::from(10_u128);
+            contract.decrease_user_deposit(token1.clone(), alice(), WBigDecimal::from(fee_amount));
+            contract.increase_user_deposit(token1.clone(), alice(), WBigDecimal::from(pnl.1));
         } else {
-            contract.decrease_user_deposit(token1.clone(), alice(), WRatio::from(pnl.1));
+            contract.decrease_user_deposit(token1.clone(), alice(), WBigDecimal::from(pnl.1));
         }
         position.active = false;
 

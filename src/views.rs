@@ -1,5 +1,5 @@
 use crate::position::ViewPosition;
-use crate::ratio::Ratio;
+use crate::big_decimal::BigDecimal;
 use crate::*;
 use near_sdk::near_bindgen;
 use std::str::FromStr;
@@ -32,8 +32,8 @@ impl Contract {
             .values()
             .map(|position| {
                 let borrow_amount = U128::from(
-                    Ratio::from(U128::from(position.collateral_amount))
-                        * Ratio::from(U128::from(position.leverage)),
+                    BigDecimal::from(U128::from(position.collateral_amount))
+                        * BigDecimal::from(U128::from(position.leverage)),
                 );
                 let price = self.get_price_by_token(position.buy_token.clone());
 
@@ -43,7 +43,7 @@ impl Contract {
                     p_type: position.p_type.clone(),
                     amount: borrow_amount,
                     price,
-                    fee: Ratio::from_str("0.3").unwrap().into(),
+                    fee: BigDecimal::from_str("0.3").unwrap().into(),
                     sell_token: position.sell_token.clone(),
                     buy_token: position.buy_token.clone(),
                 }

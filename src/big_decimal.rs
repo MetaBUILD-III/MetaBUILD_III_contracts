@@ -11,7 +11,7 @@ uint::construct_uint!(
     pub struct U384(6);
 );
 
-pub type WRatio = U128;
+pub type WBigDecimal = U128;
 
 pub(crate) const MAX_RATIO: u32 = 10000;
 
@@ -20,7 +20,6 @@ const BIG_DIVISOR: u128 = 10u128.pow(NUM_DECIMALS as u32);
 const HALF_DIVISOR: u128 = BIG_DIVISOR / 2;
 
 pub type LowU128 = U128;
-pub type Ratio = BigDecimal;
 
 #[derive(Copy, Clone)]
 pub struct BigDecimal(pub U384);
@@ -295,31 +294,31 @@ impl BorshDeserialize for BigDecimal {
 mod test {
     use std::str::FromStr;
 
-    use crate::ratio::LowU128;
-    use crate::ratio::Ratio;
+    use crate::big_decimal::LowU128;
+    use crate::big_decimal::BigDecimal;
 
     #[test]
     fn should_be_one_percent() {
         let one_percent = LowU128::from(10000000000000000000000u128);
 
         assert_eq!(
-            Ratio::from(one_percent),
-            Ratio::one() / Ratio::from(100u128)
+            BigDecimal::from(one_percent),
+            BigDecimal::one() / BigDecimal::from(100u128)
         );
     }
 
     #[test]
     fn should_be_ten() {
-        let ten = Ratio::from(10u128) * Ratio::one();
+        let ten = BigDecimal::from(10u128) * BigDecimal::one();
 
-        assert_eq!(ten, Ratio::from(10u128));
+        assert_eq!(ten, BigDecimal::from(10u128));
     }
 
     #[test]
     fn should_be_0_0000000628() {
         assert_eq!(
-            Ratio::from(LowU128::from(62800000000000000u128)),
-            Ratio::from_str("0.0000000628").unwrap()
+            BigDecimal::from(LowU128::from(62800000000000000u128)),
+            BigDecimal::from_str("0.0000000628").unwrap()
         );
     }
 }

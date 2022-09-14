@@ -30,7 +30,7 @@ impl Contract {
         let xrate = self.calculate_xrate(sell_token.clone(), buy_token.clone());
 
         let borrow_token_amount =
-            U128::from(Ratio::from(sell_token_amount) * xrate * Ratio::from(leverage));
+            U128::from(BigDecimal::from(sell_token_amount) * xrate * BigDecimal::from(leverage));
         log!("borrowing amount {}", borrow_token_amount.0);
 
         self.borrow_buy_token(borrow_token_amount);
@@ -51,7 +51,7 @@ impl Contract {
             ),
         );
 
-        let borrow_amount = U128::from(Ratio::from(sell_token_amount) * Ratio::from(leverage));
+        let borrow_amount = U128::from(BigDecimal::from(sell_token_amount) * BigDecimal::from(leverage));
         PromiseOrValue::Value(borrow_amount)
     }
 }

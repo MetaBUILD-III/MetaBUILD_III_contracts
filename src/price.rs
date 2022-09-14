@@ -37,8 +37,8 @@ impl Contract {
         self.prices.get(&token_id).unwrap().value
     }
 
-    pub fn calculate_xrate(&self, token_id_1: AccountId, token_id_2: AccountId) -> Ratio {
-        Ratio::from(self.get_price_by_token(token_id_1))
-            / Ratio::from(self.get_price_by_token(token_id_2))
+    pub fn calculate_xrate(&self, token_id_1: AccountId, token_id_2: AccountId) -> BigDecimal {
+        BigDecimal::from(self.get_price_by_token(token_id_1))
+            / BigDecimal::from(self.get_price_by_token(token_id_2))
     }
 }

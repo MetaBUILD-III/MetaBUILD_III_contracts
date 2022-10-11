@@ -1,12 +1,15 @@
+mod big_decimal;
 mod cancel_order;
 mod metadata;
+mod price;
 mod view;
 
 use crate::metadata::*;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::collections::LookupMap;
+use near_sdk::collections::{LookupMap, UnorderedMap};
 use near_sdk::json_types::U128;
 use near_sdk::{env, near_bindgen, require, AccountId};
+use std::collections::HashMap;
 
 #[near_bindgen]
 #[derive(BorshDeserialize, BorshSerialize)]
@@ -16,6 +19,15 @@ pub struct Contract {
 
     /// Protocol fee
     protocol_fee: u128,
+
+    /// token ➝ Price
+    prices: UnorderedMap<AccountId, Price>,
+
+    /// total orders created on contract
+    order_nonce: u64,
+
+    /// user ➝ order_id ➝ Order
+    orders: UnorderedMap<AccountId, HashMap<u64, Order>>,
 }
 
 impl Default for Contract {
@@ -34,6 +46,9 @@ impl Contract {
         Self {
             market_infos: LookupMap::new(StorageKeys::Markets),
             protocol_fee: 10u128.pow(24),
+            prices: UnorderedMap::new(StorageKeys::Prices),
+            order_nonce: 0,
+            orders: UnorderedMap::new(StorageKeys::Orders),
         }
     }
 

@@ -13,7 +13,18 @@ impl Contract {
         }
     }
 
-    pub fn view_order(&self, account_id: AccountId, order_id: U128) -> OrderView {}
+    pub fn view_order(&self, account_id: AccountId, order_id: U128) -> OrderView {
+        OrderView {
+            order_id,
+            status: OrderStatus::Pending,
+            order_type: OrderType::Buy,
+            amount: 0,
+            sell_token: "stoken".parse().unwrap(),
+            buy_token: "btoken".parse().unwrap(),
+            buy_token_price: U128(0),
+            fee: U128(0),
+        }
+    }
 
     pub fn calculate_pnl(
         &self,
@@ -25,5 +36,24 @@ impl Contract {
             is_profit: true,
             amount: U128(0),
         }
+    }
+
+    pub fn view_orders(
+        account_id: AccountId,
+        sell_token: AccountId,
+        buy_token: AccountId,
+        market_borrow_apy: U128,
+    ) -> Vec<OrderView> {
+        let ov = OrderView {
+            order_id: U128(0),
+            status: OrderStatus::Pending,
+            order_type: OrderType::Buy,
+            amount: 0,
+            sell_token,
+            buy_token,
+            buy_token_price: U128(0),
+            fee: U128(0),
+        };
+        vec![ov]
     }
 }

@@ -56,4 +56,14 @@ impl Contract {
         };
         vec![ov]
     }
+
+    pub fn view_pair(&self, sell_token: AccountId, buy_token: AccountId) -> TradePair {
+        self.supported_markets
+            .get(&(sell_token, buy_token))
+            .unwrap()
+    }
+
+    pub fn view_supported_pairs(&self) -> Vec<((AccountId, AccountId), TradePair)> {
+        self.supported_markets.to_vec()
+    }
 }

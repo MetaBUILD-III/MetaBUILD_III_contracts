@@ -8,6 +8,7 @@ pub enum StorageKeys {
     Markets,
     Prices,
     Orders,
+    SupportedMarkets,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
@@ -27,9 +28,8 @@ pub struct PnLView {
     pub(crate) amount: U128,
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Debug)]
 #[serde(crate = "near_sdk::serde")]
-#[derive(Debug)]
 pub struct Price {
     ticker_id: String,
     value: BigDecimal,
@@ -64,12 +64,22 @@ pub struct Order {
 
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct OrderView {
-    pub(crate) order_id: U128,
-    pub(crate) status: OrderStatus,
-    pub(crate) order_type: OrderType,
-    pub(crate) amount: Balance,
-    pub(crate) sell_token: AccountId,
-    pub(crate) buy_token: AccountId,
-    pub(crate) buy_token_price: WBalance,
-    pub(crate) fee: WBalance,
+    pub order_id: U128,
+    pub status: OrderStatus,
+    pub order_type: OrderType,
+    pub amount: Balance,
+    pub sell_token: AccountId,
+    pub buy_token: AccountId,
+    pub buy_token_price: WBalance,
+    pub fee: WBalance,
+}
+
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Debug, Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub struct TradePair {
+    pub sell_ticker_id: String,
+    pub sell_token: AccountId,
+    pub sell_token_market: AccountId,
+    pub buy_ticker_id: String,
+    pub buy_token: AccountId,
 }

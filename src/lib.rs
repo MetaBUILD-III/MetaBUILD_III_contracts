@@ -4,12 +4,15 @@ mod market;
 mod metadata;
 mod price;
 mod view;
+mod ft;
+mod deposit;
+mod common;
 
 use crate::metadata::*;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LookupMap, UnorderedMap, Vector};
 use near_sdk::json_types::U128;
-use near_sdk::{env, near_bindgen, require, AccountId};
+use near_sdk::{env, near_bindgen, require, AccountId, Balance};
 use std::collections::HashMap;
 
 #[near_bindgen]
@@ -32,6 +35,9 @@ pub struct Contract {
 
     /// (AccountId, AccountId) ➝ TradePair
     supported_markets: UnorderedMap<(AccountId, AccountId), TradePair>,
+
+    /// User ➝ Token ➝ Balance
+    balances: UnorderedMap<AccountId, HashMap<AccountId, Balance>>,
 }
 
 impl Default for Contract {
@@ -39,6 +45,7 @@ impl Default for Contract {
         env::panic_str("Margin trading contract should be initialized before usage")
     }
 }
+
 
 #[near_bindgen]
 impl Contract {
@@ -54,6 +61,7 @@ impl Contract {
             order_nonce: 0,
             orders: UnorderedMap::new(StorageKeys::Orders),
             supported_markets: UnorderedMap::new(StorageKeys::SupportedMarkets),
+            balances: UnorderedMap::new(StorageKeys::Balances),
         }
     }
 

@@ -1,5 +1,5 @@
-use std::fmt;
 use near_sdk::AccountId;
+use std::fmt;
 
 use near_sdk::serde::{Deserialize, Serialize};
 
@@ -7,9 +7,7 @@ use near_sdk::serde::{Deserialize, Serialize};
 #[serde(crate = "near_sdk::serde")]
 #[derive(Debug)]
 pub enum Actions {
-    Deposit {
-        token: AccountId
-    }
+    Deposit { token: AccountId },
 }
 
 impl fmt::Display for Actions {

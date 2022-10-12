@@ -1,9 +1,9 @@
+use crate::common::Actions;
 use crate::*;
 use near_contract_standards::fungible_token::receiver::FungibleTokenReceiver;
-use near_sdk::{Balance, log, PromiseOrValue, serde_json};
-use near_sdk::AccountId;
 use near_sdk::json_types::U128;
-use crate::common::Actions;
+use near_sdk::AccountId;
+use near_sdk::{log, serde_json, Balance, PromiseOrValue};
 
 #[near_bindgen]
 impl FungibleTokenReceiver for Contract {
@@ -19,7 +19,6 @@ impl FungibleTokenReceiver for Contract {
         //     "The call should come from token account"
         // );
 
-
         assert!(
             Balance::from(amount) > 0,
             "Amount should be a positive number"
@@ -30,9 +29,7 @@ impl FungibleTokenReceiver for Contract {
         let action: Actions = serde_json::from_str(&msg).expect("Incorrect command in transfer");
 
         match action {
-            Actions::Deposit {
-                token
-            } => self.deposit(amount, token),
+            Actions::Deposit { token } => self.deposit(amount, token),
             _ => {
                 panic!("Incorrect action in transfer")
             }

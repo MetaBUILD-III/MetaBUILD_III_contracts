@@ -2,7 +2,7 @@ use crate::*;
 
 #[near_bindgen]
 impl Contract {
-    pub fn view_market_data(&self, market: AccountId) -> MarketData {
+    pub fn view_market_data(&self, _market: AccountId) -> MarketData {
         MarketData {
             total_supplies: U128(0),
             total_borrows: U128(0),
@@ -13,7 +13,7 @@ impl Contract {
         }
     }
 
-    pub fn view_order(&self, account_id: AccountId, order_id: U128) -> OrderView {
+    pub fn view_order(&self, _account_id: AccountId, order_id: U128) -> OrderView {
         OrderView {
             order_id,
             status: OrderStatus::Pending,
@@ -28,9 +28,9 @@ impl Contract {
 
     pub fn calculate_pnl(
         &self,
-        account_id: AccountId,
-        order_id: U128,
-        data: MarketData,
+        _account_id: AccountId,
+        _order_id: U128,
+        _data: MarketData,
     ) -> PnLView {
         PnLView {
             is_profit: true,
@@ -39,10 +39,10 @@ impl Contract {
     }
 
     pub fn view_orders(
-        account_id: AccountId,
+        _account_id: AccountId,
         sell_token: AccountId,
         buy_token: AccountId,
-        market_borrow_apy: U128,
+        _market_borrow_apy: U128,
     ) -> Vec<OrderView> {
         let ov = OrderView {
             order_id: U128(0),
@@ -70,7 +70,7 @@ impl Contract {
     pub fn balance_of(&self, account_id: AccountId, token: AccountId) -> Balance {
         match self.balances.get(&account_id) {
             None => 0,
-            Some(user_balance_per_token) => *user_balance_per_token.get(&token).unwrap_or(&0u128)
+            Some(user_balance_per_token) => *user_balance_per_token.get(&token).unwrap_or(&0u128),
         }
     }
 }

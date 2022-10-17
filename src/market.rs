@@ -10,7 +10,7 @@ impl Contract {
 
     #[private]
     pub fn remove_pair(&mut self, pairData: TradePair) {
-        let pair = (pairData.sell_token.clone(), pairData.buy_token.clone());
+        let pair = (pairData.sell_token.clone(), pairData.buy_token);
         self.supported_markets.remove(&pair);
     }
 }

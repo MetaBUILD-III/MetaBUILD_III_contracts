@@ -1,5 +1,8 @@
 mod big_decimal;
 mod cancel_order;
+mod common;
+mod deposit;
+mod ft;
 mod market;
 mod metadata;
 mod price;
@@ -11,7 +14,7 @@ use crate::metadata::*;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LookupMap, UnorderedMap};
 use near_sdk::json_types::U128;
-use near_sdk::{env, near_bindgen, require, AccountId};
+use near_sdk::{env, near_bindgen, require, AccountId, Balance};
 use std::collections::HashMap;
 use crate::config::Config;
 
@@ -35,6 +38,9 @@ pub struct Contract {
 
     /// (AccountId, AccountId) ➝ TradePair
     supported_markets: UnorderedMap<(AccountId, AccountId), TradePair>,
+
+    /// User ➝ Token ➝ Balance
+    balances: UnorderedMap<AccountId, HashMap<AccountId, Balance>>,
 
     config: Config,
 }
@@ -70,6 +76,7 @@ impl Contract {
             orders: UnorderedMap::new(StorageKeys::Orders),
             supported_markets: UnorderedMap::new(StorageKeys::SupportedMarkets),
             config,
+            balances: UnorderedMap::new(StorageKeys::Balances),
         }
     }
 

@@ -9,6 +9,7 @@ pub enum StorageKeys {
     Prices,
     Orders,
     SupportedMarkets,
+    Balances,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
@@ -36,6 +37,7 @@ pub struct Price {
     value: BigDecimal,
 }
 
+
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
 #[serde(crate = "near_sdk::serde")]
 pub enum OrderStatus {
@@ -45,7 +47,7 @@ pub enum OrderStatus {
     Liquidated,
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Debug)]
 #[serde(crate = "near_sdk::serde")]
 pub enum OrderType {
     Buy,

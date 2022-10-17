@@ -72,4 +72,11 @@ impl Contract {
 
         pairs
     }
+
+    pub fn balance_of(&self, account_id: AccountId, token: AccountId) -> Balance {
+        match self.balances.get(&account_id) {
+            None => 0,
+            Some(user_balance_per_token) => *user_balance_per_token.get(&token).unwrap_or(&0u128),
+        }
+    }
 }

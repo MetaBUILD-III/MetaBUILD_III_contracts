@@ -2,5 +2,5 @@ use crate::*;
 
 #[near_bindgen]
 impl Contract {
-    fn cancel_order(&mut self, _order_id: U128, _swap_fee: U128, _price_impact: U128) {}
+    fn cancel_order(&mut self, order_id: U128, swap_fee: U128, price_impact: U128) {}
 }

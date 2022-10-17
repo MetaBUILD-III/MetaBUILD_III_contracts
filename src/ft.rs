@@ -13,12 +13,6 @@ impl FungibleTokenReceiver for Contract {
         amount: U128,
         msg: String,
     ) -> PromiseOrValue<U128> {
-        // assert_eq!(
-        //     env::predecessor_account_id(),
-        //     self.underlying_token,
-        //     "The call should come from token account"
-        // );
-
         assert!(
             Balance::from(amount) > 0,
             "Amount should be a positive number"

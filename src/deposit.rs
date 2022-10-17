@@ -41,18 +41,8 @@ impl Contract {
     }
 
     pub fn set_balance(&mut self, account_id: AccountId, token: AccountId, token_amount: Balance) {
-        match self.balances.get(&account_id) {
-            None => {
-                let mut new_user_balance_by_token = HashMap::new();
-                new_user_balance_by_token.insert(token, token_amount);
-
-                self.balances
-                    .insert(&account_id, &new_user_balance_by_token);
-            }
-            Some(mut user_balance_by_token) => {
-                user_balance_by_token.insert(token, token_amount);
-                self.balances.insert(&account_id, &user_balance_by_token);
-            }
-        }
+        let mut user_balance_by_token = self.balances.get(&account_id).unwrap_or_default();
+        user_balance_by_token.insert(token, token_amount);
+        self.balances.insert(&account_id, &user_balance_by_token);
     }
 }

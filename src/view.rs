@@ -63,8 +63,14 @@ impl Contract {
             .unwrap()
     }
 
-    pub fn view_supported_pairs(&self) -> Vec<((AccountId, AccountId), TradePair)> {
-        self.supported_markets.to_vec()
+    pub fn view_supported_pairs(&self) -> Vec<TradePair> {
+        let pairs = self
+            .supported_markets
+            .iter()
+            .map(|(account_id, trade_pair)| trade_pair)
+            .collect::<Vec<TradePair>>();
+
+        pairs
     }
 
     pub fn balance_of(&self, account_id: AccountId, token: AccountId) -> Balance {

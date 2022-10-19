@@ -1,22 +1,22 @@
 mod big_decimal;
 mod cancel_order;
 mod common;
+mod config;
 mod deposit;
 mod ft;
 mod market;
 mod metadata;
+mod oraclehook;
 mod price;
 mod view;
-mod oraclehook;
-mod config;
 
+use crate::config::Config;
 use crate::metadata::*;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LookupMap, UnorderedMap};
 use near_sdk::json_types::U128;
 use near_sdk::{env, near_bindgen, require, AccountId, Balance};
 use std::collections::HashMap;
-use crate::config::Config;
 
 #[near_bindgen]
 #[derive(BorshDeserialize, BorshSerialize)]
@@ -50,7 +50,6 @@ impl Default for Contract {
         env::panic_str("Margin trading contract should be initialized before usage")
     }
 }
-
 
 #[near_bindgen]
 impl Contract {

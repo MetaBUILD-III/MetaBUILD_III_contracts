@@ -34,7 +34,7 @@ pub struct PnLView {
 #[serde(crate = "near_sdk::serde")]
 pub struct Price {
     pub(crate) ticker_id: String,
-    value: BigDecimal,
+    pub(crate) value: BigDecimal,
 }
 
 

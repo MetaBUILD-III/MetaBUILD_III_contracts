@@ -9,13 +9,15 @@ mod price;
 mod view;
 mod oraclehook;
 mod config;
+mod create_order;
 
 use crate::metadata::*;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LookupMap, UnorderedMap};
 use near_sdk::json_types::U128;
-use near_sdk::{env, near_bindgen, require, AccountId, Balance};
+use near_sdk::{env, near_bindgen, ext_contract, require, AccountId, Balance, PromiseOrValue};
 use std::collections::HashMap;
+use crate::big_decimal::WBalance;
 use crate::config::Config;
 
 #[near_bindgen]
@@ -49,6 +51,11 @@ impl Default for Contract {
     fn default() -> Self {
         env::panic_str("Margin trading contract should be initialized before usage")
     }
+}
+
+#[ext_contract(ext_market)]
+trait MarketInterface {
+    fn borrow(&mut self, amount: WBalance) -> PromiseOrValue<U128>;
 }
 
 

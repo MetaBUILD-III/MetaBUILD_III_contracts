@@ -10,6 +10,7 @@ mod oraclehook;
 mod price;
 mod view;
 
+use crate::big_decimal::BigDecimal;
 use crate::config::Config;
 use crate::metadata::*;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
@@ -43,6 +44,18 @@ pub struct Contract {
     balances: UnorderedMap<AccountId, HashMap<AccountId, Balance>>,
 
     config: Config,
+
+    /// Pool id in Ref Finance
+    pool_id: u64,
+
+    /// token id -> market id
+    tokens_markets: LookupMap<AccountId, AccountId>,
+
+    /// Protocol profit token_id -> amount
+    protocol_profit: LookupMap<AccountId, BigDecimal>,
+
+    /// Ref finance accountId
+    ref_finance_account: AccountId,
 }
 
 impl Default for Contract {
@@ -75,7 +88,12 @@ impl Contract {
             orders: UnorderedMap::new(StorageKeys::Orders),
             supported_markets: UnorderedMap::new(StorageKeys::SupportedMarkets),
             config,
+            pool_id: 0,
             balances: UnorderedMap::new(StorageKeys::Balances),
+            tokens_markets: LookupMap::new(StorageKeys::TokenMarkets),
+            protocol_profit: LookupMap::new(StorageKeys::ProtocolProfit),
+            //TODO: set reffinance accountId
+            ref_finance_account: "".parse().unwrap(),
         }
     }
 
@@ -87,5 +105,15 @@ impl Contract {
     #[private]
     fn set_protocol_fee(&mut self, fee: U128) {
         self.protocol_fee = fee.0
+    }
+
+    #[private]
+    fn add_token_market(&mut self, token_id: AccountId, market_id: AccountId) {
+        self.tokens_markets.insert(&token_id, &market_id);
+    }
+
+    #[private]
+    pub fn set_pool_id(&mut self, pool_id: U128) {
+        self.pool_id = pool_id.0 as u64;
     }
 }

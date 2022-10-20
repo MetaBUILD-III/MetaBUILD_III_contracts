@@ -1,4 +1,6 @@
+use crate::big_decimal::{BigDecimal, WRatio};
 use crate::*;
+use near_sdk::env::block_height;
 
 #[near_bindgen]
 impl Contract {
@@ -32,9 +34,33 @@ impl Contract {
         order_id: U128,
         data: MarketData,
     ) -> PnLView {
+        let orders = self.orders.get(&account_id).unwrap_or_else(|| {
+            panic!("Orders for account: {} not found", account_id);
+        });
+
+        let order = orders.get(&(order_id.0 as u64)).unwrap_or_else(|| {
+            panic!("Order with id: {} not found", order_id.0);
+        });
+
+        let sell_amount_open =
+            BigDecimal::from(order.amount) * order.leverage * order.sell_token_price.value;
+        let swap_fee = 10_u128.pow(24);
+        let price_impact = 10_u128.pow(24);
+        let expect_amount = self.get_price(order.buy_token.clone()).value
+            * sell_amount_open
+            * BigDecimal::from(10_u128.pow(24) - swap_fee)
+            * BigDecimal::from(10_u128.pow(24) - price_impact)
+            / order.buy_token_price.value;
+        let borrow_fee =
+            BigDecimal::from(data.borrow_rate_ratio.0 * (block_height() - order.block) as u128);
+
+        let is_profitable = expect_amount > sell_amount_open + borrow_fee;
+        let pnl = (expect_amount - sell_amount_open - borrow_fee)
+            * BigDecimal::from(1 - self.protocol_fee);
+
         PnLView {
-            is_profit: true,
-            amount: U128(0),
+            is_profit: is_profitable,
+            amount: WRatio::from(pnl),
         }
     }
 
@@ -78,5 +104,11 @@ impl Contract {
             None => 0,
             Some(user_balance_per_token) => *user_balance_per_token.get(&token).unwrap_or(&0u128),
         }
+    }
+
+    pub fn view_price(&self, token_id: AccountId) -> Price {
+        self.prices.get(&token_id).unwrap_or_else(|| {
+            panic!("Price for token: {} not found", token_id);
+        })
     }
 }

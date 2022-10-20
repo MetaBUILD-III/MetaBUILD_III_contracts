@@ -7,8 +7,7 @@ impl Contract {
         self.prices.insert(&token_id, &price);
     }
 
-    #[private]
-    pub fn view_price(&self, token_id: AccountId) -> Price {
+    pub fn get_price(&self, token_id: AccountId) -> Price {
         self.prices.get(&token_id).unwrap_or_else(|| {
             panic!("Price for token: {} not found", token_id);
         })

@@ -3,6 +3,8 @@ use crate::*;
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{Balance, BlockHeight, BorshStorageKey};
 
+pub const NO_DEPOSIT: Balance = 0;
+
 #[derive(BorshSerialize, BorshStorageKey)]
 pub enum StorageKeys {
     Markets,
@@ -10,6 +12,8 @@ pub enum StorageKeys {
     Orders,
     SupportedMarkets,
     Balances,
+    TokenMarkets,
+    ProtocolProfit,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
@@ -34,10 +38,10 @@ pub struct PnLView {
 #[serde(crate = "near_sdk::serde")]
 pub struct Price {
     pub ticker_id: String,
-    value: BigDecimal,
+    pub value: BigDecimal,
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, PartialEq, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub enum OrderStatus {
     Pending,
@@ -46,14 +50,14 @@ pub enum OrderStatus {
     Liquidated,
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub enum OrderType {
     Buy,
     Sell,
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct Order {
     pub status: OrderStatus,

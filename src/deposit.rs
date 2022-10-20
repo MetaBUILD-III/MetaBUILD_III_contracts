@@ -20,7 +20,7 @@ impl Contract {
             .keys()
             .any(|pair| pair.0 == token || pair.1 == token);
 
-        assert!(
+        require!(
             is_token_supported,
             "Deposit was done by token, that are not currently supported"
         );
@@ -39,6 +39,17 @@ impl Contract {
         let increased_balance = self.balance_of(account_id.clone(), token.clone()) + token_amount;
         self.set_balance(account_id, token, increased_balance)
     }
+
+    pub fn decrease_balance(
+        &mut self,
+        account_id: AccountId,
+        token: AccountId,
+        token_amount: Balance,
+    ) {
+        require!(self.balance_of(account_id.clone(), token.clone()) >= token_amount);
+        self.set_balance(account_id.clone(), token.clone(), self.balance_of(account_id.clone(), token.clone()) - token_amount)
+    }
+
 
     pub fn set_balance(&mut self, account_id: AccountId, token: AccountId, token_amount: Balance) {
         let mut user_balance_by_token = self.balances.get(&account_id).unwrap_or_default();

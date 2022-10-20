@@ -57,15 +57,15 @@ pub enum OrderType {
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
 #[serde(crate = "near_sdk::serde")]
 pub struct Order {
-    status: OrderStatus,
-    order_type: OrderType,
-    amount: Balance,
-    sell_token: AccountId,
-    buy_token: AccountId,
-    leverage: BigDecimal,
-    sell_token_price: Price,
-    buy_token_price: Price,
-    block: BlockHeight,
+    pub status: OrderStatus,
+    pub order_type: OrderType,
+    pub amount: Balance,
+    pub sell_token: AccountId,
+    pub buy_token: AccountId,
+    pub leverage: BigDecimal,
+    pub sell_token_price: Price,
+    pub buy_token_price: Price,
+    pub block: BlockHeight,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]

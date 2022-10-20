@@ -1,24 +1,24 @@
 mod big_decimal;
 mod cancel_order;
 mod common;
+mod config;
+mod create_order;
 mod deposit;
 mod ft;
 mod market;
 mod metadata;
+mod oraclehook;
 mod price;
 mod view;
-mod oraclehook;
-mod config;
-mod create_order;
 
+use crate::big_decimal::WBalance;
+use crate::config::Config;
 use crate::metadata::*;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LookupMap, UnorderedMap};
 use near_sdk::json_types::U128;
-use near_sdk::{env, near_bindgen, ext_contract, require, AccountId, Balance, PromiseOrValue};
+use near_sdk::{env, ext_contract, near_bindgen, require, AccountId, Balance, PromiseOrValue};
 use std::collections::HashMap;
-use crate::big_decimal::WBalance;
-use crate::config::Config;
 
 #[near_bindgen]
 #[derive(BorshDeserialize, BorshSerialize)]
@@ -45,6 +45,9 @@ pub struct Contract {
     balances: UnorderedMap<AccountId, HashMap<AccountId, Balance>>,
 
     config: Config,
+
+    /// Pool which should be used for swapping.
+    pool_id: u64,
 }
 
 impl Default for Contract {
@@ -52,12 +55,6 @@ impl Default for Contract {
         env::panic_str("Margin trading contract should be initialized before usage")
     }
 }
-
-#[ext_contract(ext_market)]
-trait MarketInterface {
-    fn borrow(&mut self, amount: WBalance) -> PromiseOrValue<U128>;
-}
-
 
 #[near_bindgen]
 impl Contract {
@@ -84,6 +81,7 @@ impl Contract {
             supported_markets: UnorderedMap::new(StorageKeys::SupportedMarkets),
             config,
             balances: UnorderedMap::new(StorageKeys::Balances),
+            pool_id: 0,
         }
     }
 

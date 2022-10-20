@@ -1,5 +1,5 @@
 use crate::*;
-use near_sdk::serde::{Serialize, Deserialize};
+use near_sdk::serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "near_sdk::serde")]
@@ -14,7 +14,6 @@ pub struct PriceJsonList {
 pub trait OraclePriceHandlerHook {
     fn oracle_on_data(&mut self, price_data: PriceJsonList);
 }
-
 
 #[near_bindgen]
 impl OraclePriceHandlerHook for Contract {

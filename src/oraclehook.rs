@@ -28,9 +28,7 @@ impl OraclePriceHandlerHook for Contract {
             env::predecessor_account_id()
         );
 
-
         let ticker_map = self.get_ticker_map();
-
 
         for price in price_data.price_list {
             if let Some(token) = ticker_map.get(&price.ticker_id) {

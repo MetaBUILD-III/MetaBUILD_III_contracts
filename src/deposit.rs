@@ -47,9 +47,12 @@ impl Contract {
         token_amount: Balance,
     ) {
         require!(self.balance_of(account_id.clone(), token.clone()) >= token_amount);
-        self.set_balance(account_id.clone(), token.clone(), self.balance_of(account_id.clone(), token.clone()) - token_amount)
+        self.set_balance(
+            account_id.clone(),
+            token.clone(),
+            self.balance_of(account_id.clone(), token.clone()) - token_amount,
+        )
     }
-
 
     pub fn set_balance(&mut self, account_id: AccountId, token: AccountId, token_amount: Balance) {
         let mut user_balance_by_token = self.balances.get(&account_id).unwrap_or_default();

@@ -12,7 +12,6 @@ mod oraclehook;
 mod price;
 mod view;
 
-
 use crate::big_decimal::WBalance;
 use crate::config::Config;
 use crate::metadata::*;

@@ -1,6 +1,6 @@
 [package]
-name = "mtrading"
-version = "0.0.1"
+name = "mtradingcl"
+version = "0.0.2"
 authors = ["mark.ts@blaize.tech", "tymofii.s@blaize.tech"]
 edition = "2021"
 

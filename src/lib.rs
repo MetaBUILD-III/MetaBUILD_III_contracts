@@ -1,15 +1,21 @@
 mod big_decimal;
 mod cancel_order;
+mod common;
+mod config;
+mod deposit;
+mod ft;
 mod market;
 mod metadata;
+mod oraclehook;
 mod price;
 mod view;
 
+use crate::config::Config;
 use crate::metadata::*;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::collections::{LookupMap, UnorderedMap, Vector};
+use near_sdk::collections::{LookupMap, UnorderedMap};
 use near_sdk::json_types::U128;
-use near_sdk::{env, near_bindgen, require, AccountId};
+use near_sdk::{env, near_bindgen, require, AccountId, Balance};
 use std::collections::HashMap;
 
 #[near_bindgen]
@@ -32,6 +38,11 @@ pub struct Contract {
 
     /// (AccountId, AccountId) ➝ TradePair
     supported_markets: UnorderedMap<(AccountId, AccountId), TradePair>,
+
+    /// User ➝ Token ➝ Balance
+    balances: UnorderedMap<AccountId, HashMap<AccountId, Balance>>,
+
+    config: Config,
 }
 
 impl Default for Contract {
@@ -42,9 +53,18 @@ impl Default for Contract {
 
 #[near_bindgen]
 impl Contract {
+    /// Initializes the contract with the given config. Needs to be called once.
+    #[init]
+    pub fn new_with_config(owner_id: AccountId, oracle_account_id: AccountId) -> Self {
+        Self::new(Config {
+            owner_id,
+            oracle_account_id,
+        })
+    }
+
     #[init]
     #[private]
-    pub fn new() -> Self {
+    pub fn new(config: Config) -> Self {
         require!(!env::state_exists(), "Already initialized");
 
         Self {
@@ -54,6 +74,8 @@ impl Contract {
             order_nonce: 0,
             orders: UnorderedMap::new(StorageKeys::Orders),
             supported_markets: UnorderedMap::new(StorageKeys::SupportedMarkets),
+            config,
+            balances: UnorderedMap::new(StorageKeys::Balances),
         }
     }
 

@@ -19,8 +19,8 @@ impl Contract {
             status: OrderStatus::Pending,
             order_type: OrderType::Buy,
             amount: 0,
-            sell_token: "stoken".parse().unwrap(),
-            buy_token: "btoken".parse().unwrap(),
+            sell_token: "sell_token".parse().unwrap(),
+            buy_token: "buy_token".parse().unwrap(),
             buy_token_price: U128(0),
             fee: U128(0),
         }
@@ -71,5 +71,12 @@ impl Contract {
             .collect::<Vec<TradePair>>();
 
         pairs
+    }
+
+    pub fn balance_of(&self, account_id: AccountId, token: AccountId) -> Balance {
+        match self.balances.get(&account_id) {
+            None => 0,
+            Some(user_balance_per_token) => *user_balance_per_token.get(&token).unwrap_or(&0u128),
+        }
     }
 }

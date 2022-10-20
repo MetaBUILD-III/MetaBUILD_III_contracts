@@ -26,8 +26,8 @@ pub struct MarketData {
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
 #[serde(crate = "near_sdk::serde")]
 pub struct PnLView {
-    pub(crate) is_profit: bool,
-    pub(crate) amount: U128,
+    pub is_profit: bool,
+    pub amount: U128,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Debug, Clone)]
@@ -36,7 +36,6 @@ pub struct Price {
     pub(crate) ticker_id: String,
     pub(crate) value: BigDecimal,
 }
-
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
 #[serde(crate = "near_sdk::serde")]
@@ -47,7 +46,7 @@ pub enum OrderStatus {
     Liquidated,
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Debug)]
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
 #[serde(crate = "near_sdk::serde")]
 pub enum OrderType {
     Buy,

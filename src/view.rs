@@ -19,8 +19,8 @@ impl Contract {
             status: OrderStatus::Pending,
             order_type: OrderType::Buy,
             amount: 0,
-            sell_token: "stoken".parse().unwrap(),
-            buy_token: "btoken".parse().unwrap(),
+            sell_token: "sell_token".parse().unwrap(),
+            buy_token: "buy_token".parse().unwrap(),
             buy_token_price: U128(0),
             fee: U128(0),
         }

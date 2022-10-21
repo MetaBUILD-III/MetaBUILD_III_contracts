@@ -67,7 +67,7 @@ impl Contract {
         let pairs = self
             .supported_markets
             .iter()
-            .map(|(account_id, trade_pair)| trade_pair)
+            .map(|(_, trade_pair)| trade_pair)
             .collect::<Vec<TradePair>>();
 
         pairs

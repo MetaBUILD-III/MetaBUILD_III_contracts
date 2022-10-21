@@ -1,7 +1,7 @@
 [package]
-name = "mtradingcl"
+name = "limit-orders"
 version = "0.0.2"
-authors = ["mark.ts@blaize.tech", "tymofii.s@blaize.tech"]
+authors = ["mark.ts@blaize.tech", "tymofii.s@blaize.tech", "dmytro.sh@blaize.tech"]
 edition = "2021"
 
 [lib]

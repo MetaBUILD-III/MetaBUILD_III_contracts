@@ -46,7 +46,7 @@ impl Contract {
         token: AccountId,
         token_amount: Balance,
     ) {
-        require!(self.balance_of(account_id.clone(), token.clone()) >= token_amount);
+        require!(self.balance_of(account_id.clone(), token.clone()) >= token_amount, "Decreased balance must be greater than 0");
         self.set_balance(
             account_id.clone(),
             token.clone(),

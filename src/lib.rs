@@ -10,6 +10,8 @@ mod market;
 mod metadata;
 mod oraclehook;
 mod price;
+mod ref_finance;
+mod utils;
 mod view;
 
 use crate::big_decimal::WBalance;
@@ -49,6 +51,12 @@ pub struct Contract {
 
     /// Pool which should be used for swapping.
     pool_id: u64,
+
+    /// token id -> market id
+    tokens_markets: LookupMap<AccountId, AccountId>,
+
+    /// Ref finance accountId
+    ref_finance_account: AccountId,
 }
 
 impl Default for Contract {
@@ -83,6 +91,8 @@ impl Contract {
             config,
             balances: UnorderedMap::new(StorageKeys::Balances),
             pool_id: 0,
+            tokens_markets: LookupMap::new(StorageKeys::TokenMarkets),
+            ref_finance_account: "".parse().unwrap(), //  "ref-finance-101.testnet"
         }
     }
 
@@ -94,5 +104,15 @@ impl Contract {
     #[private]
     fn set_protocol_fee(&mut self, fee: U128) {
         self.protocol_fee = fee.0
+    }
+
+    #[private]
+    fn set_ref_finance_account(&mut self, ref_finance_account: AccountId) {
+        self.ref_finance_account = ref_finance_account
+    }
+
+    #[private]
+    fn add_token_market(&mut self, token_id: AccountId, market_id: AccountId) {
+        self.tokens_markets.insert(&token_id, &market_id);
     }
 }

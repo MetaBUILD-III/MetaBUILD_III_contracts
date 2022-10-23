@@ -1,33 +1,16 @@
 use crate::big_decimal::{BigDecimal, WBalance};
+use crate::ref_finance::{Action, SwapAction, TokenReceiverMessage};
+use crate::utils::ext_token;
+use crate::utils::NO_DEPOSIT;
 use crate::*;
 use near_sdk::env::current_account_id;
-use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{ext_contract, is_promise_success, log, Gas};
-use std::ops::Range;
 
-mod contract_interfaces;
-
-const NO_DEPOSIT: u128 = 0;
 const GAS_FOR_BORROW: Gas = Gas(180_000_000_000_000);
-
-pub const REF_FINANCE: &str = "ref-finance-101.testnet";
 
 #[ext_contract(ext_market)]
 trait MarketInterface {
     fn borrow(&mut self, amount: WBalance) -> PromiseOrValue<U128>;
-}
-
-#[ext_contract(ext_token)]
-trait NEP141Token {
-    fn ft_transfer_call(
-        &mut self,
-        receiver_id: AccountId,
-        amount: WBalance,
-        memo: Option<String>,
-        msg: String,
-    );
-
-    fn ft_transfer(&mut self, receiver_id: AccountId, amount: WBalance, memo: Option<String>);
 }
 
 #[ext_contract(ext_self)]
@@ -38,45 +21,6 @@ trait ContractCallbackInterface {
         amount: WBalance,
         order: Order,
     ) -> PromiseOrValue<Balance>;
-}
-
-/// Message parameters to receive via token function call.
-#[derive(Serialize, Deserialize)]
-#[serde(crate = "near_sdk::serde")]
-#[serde(untagged)]
-enum TokenReceiverMessage {
-    /// Alternative to deposit + execute actions call.
-    Execute {
-        force: bool,
-        /// List of sequential actions.
-        actions: Vec<Action>,
-    },
-}
-
-/// Single swap action.
-#[derive(Serialize, Deserialize)]
-#[serde(crate = "near_sdk::serde")]
-pub struct SwapAction {
-    /// Pool which should be used for swapping.
-    pub pool_id: u64,
-    /// Token to swap from.
-    pub token_in: AccountId,
-    /// Amount to exchange.
-    /// If amount_in is None, it will take amount_out from previous step.
-    /// Will fail if amount_in is None on the first step.
-    pub amount_in: Option<U128>,
-    /// Token to swap into.
-    pub token_out: AccountId,
-    /// Required minimum amount of token_out.
-    pub min_amount_out: U128,
-}
-
-/// Single action. Allows to execute sequence of various actions initiated by an account.
-#[derive(Serialize, Deserialize)]
-#[serde(crate = "near_sdk::serde")]
-#[serde(untagged)]
-pub enum Action {
-    Swap(SwapAction),
 }
 
 #[near_bindgen]
@@ -138,14 +82,8 @@ impl Contract {
             sell_token: sell_token.clone(),
             buy_token: buy_token.clone(),
             leverage: BigDecimal::from(leverage),
-            sell_token_price: Price {
-                ticker_id: self.view_price(sell_token.clone()).ticker_id,
-                value: self.view_price(sell_token.clone()).value,
-            },
-            buy_token_price: Price {
-                ticker_id: self.view_price(buy_token.clone()).ticker_id,
-                value: self.view_price(buy_token.clone()).value,
-            },
+            sell_token_price: self.view_price(sell_token.clone()),
+            buy_token_price: self.view_price(buy_token.clone()),
             block: env::block_height(),
         };
 
@@ -153,7 +91,7 @@ impl Contract {
             .with_static_gas(Gas(3))
             .with_attached_deposit(1)
             .ft_transfer_call(
-                REF_FINANCE.parse().unwrap(),
+                self.ref_finance_account.clone(),
                 amount,
                 Some("Deposit tokens".to_string()),
                 near_sdk::serde_json::to_string(&action).unwrap(),
@@ -213,7 +151,14 @@ impl Contract {
     }
 
     #[private]
-    pub fn add_order(&mut self, account_id: AccountId, order: Order) {}
+    pub fn add_order(&mut self, account_id: AccountId, order: Order) {
+        self.order_nonce += 1;
+        let order_id = self.order_nonce;
+
+        let mut user_orders_by_id = self.orders.get(&account_id).unwrap_or_default();
+        user_orders_by_id.insert(order_id, order);
+        self.orders.insert(&account_id, &user_orders_by_id);
+    }
 
     pub fn borrow_buy_token(&self, amount: U128, token: AccountId) {
         require!(
@@ -226,7 +171,7 @@ impl Contract {
             "Amount should be a positive number"
         );
 
-        let token_market = self.get_market_by_token(token).unwrap();
+        let token_market = self.get_market_by_token(token);
 
         ext_market::ext(token_market)
             .with_static_gas(GAS_FOR_BORROW)

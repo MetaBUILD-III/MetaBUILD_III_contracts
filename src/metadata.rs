@@ -10,6 +10,7 @@ pub enum StorageKeys {
     Orders,
     SupportedMarkets,
     Balances,
+    TokenMarkets
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
@@ -33,8 +34,8 @@ pub struct PnLView {
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Debug, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct Price {
-    pub(crate) ticker_id: String,
-    pub(crate) value: BigDecimal,
+    pub ticker_id: String,
+    pub value: BigDecimal,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]

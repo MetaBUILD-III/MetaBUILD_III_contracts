@@ -56,7 +56,7 @@ pub struct Contract {
     /// token id -> market id
     tokens_markets: LookupMap<AccountId, AccountId>,
 
-    /// Ref finance accountId
+    /// Ref finance accountId [ as default "ref-finance-101.testnet" ]
     ref_finance_account: AccountId,
 }
 
@@ -93,7 +93,7 @@ impl Contract {
             balances: UnorderedMap::new(StorageKeys::Balances),
             pool_id: 0,
             tokens_markets: LookupMap::new(StorageKeys::TokenMarkets),
-            ref_finance_account: "".parse().unwrap(), //  "ref-finance-101.testnet"
+            ref_finance_account: "ref-finance-101.testnet".parse().unwrap(),
         }
     }
 

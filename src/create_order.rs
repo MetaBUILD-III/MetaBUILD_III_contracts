@@ -1,4 +1,5 @@
 use crate::big_decimal::{BigDecimal, WBalance};
+use crate::ref_finance::ref_finance::ext;
 use crate::ref_finance::{Action, SwapAction, TokenReceiverMessage};
 use crate::utils::ext_token;
 use crate::utils::NO_DEPOSIT;
@@ -7,6 +8,7 @@ use near_sdk::env::current_account_id;
 use near_sdk::{ext_contract, is_promise_success, log, Gas};
 
 const GAS_FOR_BORROW: Gas = Gas(180_000_000_000_000);
+const GAS_FOR_ADD_LIQUIDITY: Gas = Gas(200_000_000_000_000);
 
 #[ext_contract(ext_market)]
 trait MarketInterface {
@@ -28,7 +30,7 @@ impl Contract {
     pub fn create_order(
         &mut self,
         order_type: OrderType,
-        mut amount: WBalance,
+        amount: WBalance,
         sell_token: AccountId,
         buy_token: AccountId,
         leverage: U128,
@@ -116,29 +118,28 @@ impl Contract {
 
         self.decrease_balance(user.clone(), order.sell_token.clone(), amount.0);
 
-        ///// If user has a LPT with same pool_id&pl&pr,
-        // /// it is an increase opertaion, else mint.
-        // /// cause there is a UnorederMap<pool_id:lp:rp, lptid>; per user.
-        // /// @param pool_id: a string like token_a|token_b|fee
-        // /// @param left_point: left point of this range
-        // /// @param right_point: right point of this range
-        // /// @param amount_x: the number of token X users expect to add liquidity to use
-        // /// @param amount_y: the number of token Y users expect to add liquidity to use
-        // /// @param min_amount_x: the minimum number of token X users expect to add liquidity to use
-        // /// @param min_amount_y: the minimum number of token Y users expect to add liquidity to use
-        // /// @return the exist or new-mint lp token id, a string like pool_id|inner_id
-        // pub fn add_liquidity(
-        //     &mut self,
-        //     pool_id: PoolId,
-        //     left_point: i32,
-        //     right_point: i32,
-        //     amount_x: U128,
-        //     amount_y: U128,
-        //     min_amount_x: U128,
-        //     min_amount_y: U128,
-        // ) ➝ LptId
+        let left_point = 1;
+        let right_point = 2;
 
-        // TODO add ref finance call to add concentrated_liquidity
+        let amount_x = amount;
+        let amount_y: WBalance = U128::from(0);
+        let min_amount_x: U128 = amount;
+        let min_amount_y: U128 = U128::from(0);
+
+        // TODO set real parameters for calling add_liquidity on ref finance after deploying on testnet
+
+        ext(self.ref_finance_account.clone())
+            .with_static_gas(GAS_FOR_ADD_LIQUIDITY)
+            .with_attached_deposit(NO_DEPOSIT)
+            .add_liquidity(
+                U128(self.pool_id as u128),
+                left_point,
+                right_point,
+                amount_x,
+                amount_y,
+                min_amount_x,
+                min_amount_y,
+            );
 
         self.add_order(user, order);
 

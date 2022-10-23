@@ -1,5 +1,20 @@
 use crate::*;
-use near_sdk::serde::{Serialize, Deserialize};
+use near_sdk::ext_contract;
+use near_sdk::serde::{Deserialize, Serialize};
+
+#[ext_contract(ref_finance)]
+trait RefFinanceInterface {
+    fn add_liquidity(
+        &mut self,
+        pool_id: U128,
+        left_point: i32,
+        right_point: i32,
+        amount_x: U128,
+        amount_y: U128,
+        min_amount_x: U128,
+        min_amount_y: U128,
+    );
+}
 
 /// Message parameters to receive via token function call.
 #[derive(Serialize, Deserialize)]

@@ -44,7 +44,7 @@ impl Contract {
                 sell_token.clone(),
                 buy_token.clone(),
                 sell_token_amount.0,
-                self.Ïget_price_by_token(buy_token).0,
+                self.get_price_by_token(buy_token).0,
                 self.get_price_by_token(sell_token).0,
                 leverage.0,
                 borrow_token_amount.0,

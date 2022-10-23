@@ -5,6 +5,7 @@ mod config;
 
 mod create_order;
 mod deposit;
+mod execute_order;
 mod ft;
 mod market;
 mod metadata;

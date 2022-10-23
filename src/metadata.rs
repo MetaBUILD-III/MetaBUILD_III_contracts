@@ -81,7 +81,7 @@ pub struct OrderView {
     pub fee: WBalance,
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Debug, Clone)]
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(crate = "near_sdk::serde")]
 pub struct TradePair {
     pub sell_ticker_id: String,

@@ -63,6 +63,12 @@ impl Contract {
             .unwrap()
     }
 
+    pub fn view_price(&self, token_id: AccountId) -> Price {
+        self.prices.get(&token_id).unwrap_or_else(|| {
+            panic!("Price for token: {} not found", token_id);
+        })
+    }
+
     pub fn view_supported_pairs(&self) -> Vec<TradePair> {
         let pairs = self
             .supported_markets

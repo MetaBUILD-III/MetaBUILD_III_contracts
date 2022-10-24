@@ -10,6 +10,7 @@ pub enum StorageKeys {
     Orders,
     SupportedMarkets,
     Balances,
+    TokenMarkets,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
@@ -34,7 +35,7 @@ pub struct PnLView {
 #[serde(crate = "near_sdk::serde")]
 pub struct Price {
     pub ticker_id: String,
-    value: BigDecimal,
+    pub value: BigDecimal,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
@@ -56,15 +57,22 @@ pub enum OrderType {
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
 #[serde(crate = "near_sdk::serde")]
 pub struct Order {
-    status: OrderStatus,
-    order_type: OrderType,
-    amount: Balance,
-    sell_token: AccountId,
-    buy_token: AccountId,
-    leverage: BigDecimal,
-    sell_token_price: Price,
-    buy_token_price: Price,
-    block: BlockHeight,
+    pub status: OrderStatus,
+    pub order_type: OrderType,
+    pub amount: Balance,
+    pub sell_token: AccountId,
+    pub buy_token: AccountId,
+    pub leverage: BigDecimal,
+    pub sell_token_price: Price,
+    pub buy_token_price: Price,
+    pub block: BlockHeight,
+    pub lpt_id: String,
+}
+
+impl Order {
+    pub fn set_lpt_id(&mut self, lpt_id: String) {
+        self.lpt_id = lpt_id;
+    }
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]

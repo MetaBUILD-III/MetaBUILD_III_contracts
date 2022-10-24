@@ -2,6 +2,7 @@ mod big_decimal;
 mod cancel_order;
 mod common;
 mod config;
+
 mod create_order;
 mod deposit;
 mod execute_order;
@@ -10,14 +11,17 @@ mod market;
 mod metadata;
 mod oraclehook;
 mod price;
+mod ref_finance;
+mod utils;
 mod view;
 
+use crate::big_decimal::WBalance;
 use crate::config::Config;
 use crate::metadata::*;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LookupMap, UnorderedMap};
 use near_sdk::json_types::U128;
-use near_sdk::{env, near_bindgen, require, AccountId, Balance};
+use near_sdk::{env, ext_contract, near_bindgen, require, AccountId, Balance, PromiseOrValue};
 use std::collections::HashMap;
 
 #[near_bindgen]
@@ -45,6 +49,15 @@ pub struct Contract {
     balances: UnorderedMap<AccountId, HashMap<AccountId, Balance>>,
 
     config: Config,
+
+    /// Pool which should be used for swapping.
+    pool_id: u64,
+
+    /// token id -> market id
+    tokens_markets: LookupMap<AccountId, AccountId>,
+
+    /// Ref finance accountId [ as default "ref-finance-101.testnet" ]
+    ref_finance_account: AccountId,
 }
 
 impl Default for Contract {
@@ -78,6 +91,9 @@ impl Contract {
             supported_markets: UnorderedMap::new(StorageKeys::SupportedMarkets),
             config,
             balances: UnorderedMap::new(StorageKeys::Balances),
+            pool_id: 0,
+            tokens_markets: LookupMap::new(StorageKeys::TokenMarkets),
+            ref_finance_account: "ref-finance-101.testnet".parse().unwrap(),
         }
     }
 
@@ -89,5 +105,20 @@ impl Contract {
     #[private]
     fn set_protocol_fee(&mut self, fee: U128) {
         self.protocol_fee = fee.0
+    }
+
+    #[private]
+    fn set_ref_finance_account(&mut self, ref_finance_account: AccountId) {
+        self.ref_finance_account = ref_finance_account
+    }
+
+    #[private]
+    fn add_token_market(&mut self, token_id: AccountId, market_id: AccountId) {
+        self.tokens_markets.insert(&token_id, &market_id);
+    }
+
+    #[private]
+    pub fn set_pool_id(&mut self, pool_id: U128) {
+        self.pool_id = pool_id.0 as u64;
     }
 }

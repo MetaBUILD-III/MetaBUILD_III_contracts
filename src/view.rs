@@ -39,6 +39,7 @@ impl Contract {
     }
 
     pub fn view_orders(
+        &self,
         account_id: AccountId,
         sell_token: AccountId,
         buy_token: AccountId,

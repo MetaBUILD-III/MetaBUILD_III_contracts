@@ -116,4 +116,9 @@ impl Contract {
     fn add_token_market(&mut self, token_id: AccountId, market_id: AccountId) {
         self.tokens_markets.insert(&token_id, &market_id);
     }
+
+    #[private]
+    pub fn set_pool_id(&mut self, pool_id: U128) {
+        self.pool_id = pool_id.0 as u64;
+    }
 }

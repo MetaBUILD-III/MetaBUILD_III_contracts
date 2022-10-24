@@ -5,7 +5,7 @@ use crate::utils::ext_token;
 use crate::utils::NO_DEPOSIT;
 use crate::*;
 use near_sdk::env::current_account_id;
-use near_sdk::{ext_contract, is_promise_success, log, Gas};
+use near_sdk::{ext_contract, is_promise_success, log, Gas, PromiseResult};
 
 const GAS_FOR_BORROW: Gas = Gas(180_000_000_000_000);
 const GAS_FOR_ADD_LIQUIDITY: Gas = Gas(200_000_000_000_000);
@@ -42,9 +42,7 @@ impl Contract {
             "User doesn't have enough deposit to proceed this action"
         );
 
-        let mut amount_to_proceed = amount;
-
-        if BigDecimal::from(leverage) > BigDecimal::one() {
+        let amount_to_proceed = if BigDecimal::from(leverage) > BigDecimal::one() {
             let borrow_token_amount = U128::from(
                 BigDecimal::from(amount)
                     * self.calculate_xrate(buy_token.clone(), sell_token.clone())
@@ -55,8 +53,10 @@ impl Contract {
             self.borrow_buy_token(borrow_token_amount, buy_token.clone());
 
             // if we have borrowed some tokens we have to add to liquidity pool corresponding amount
-            amount_to_proceed = borrow_token_amount;
-        }
+            borrow_token_amount
+        } else {
+            amount
+        };
 
         let min_amount_out = U128::from(
             BigDecimal::from(U128::from(amount_to_proceed))
@@ -87,6 +87,7 @@ impl Contract {
             sell_token_price: self.view_price(sell_token.clone()),
             buy_token_price: self.view_price(buy_token.clone()),
             block: env::block_height(),
+            lpt_id: "".to_string(),
         };
 
         ext_token::ext(sell_token.clone())
@@ -112,7 +113,7 @@ impl Contract {
         &mut self,
         user: AccountId,
         amount: WBalance,
-        order: Order,
+        mut order: Order,
     ) -> PromiseOrValue<WBalance> {
         require!(is_promise_success(), "Token swap hasn't end successfully");
 
@@ -141,14 +142,21 @@ impl Contract {
                 min_amount_y,
             );
 
+        let lpt_id: String = match env::promise_result(0) {
+            PromiseResult::NotReady => "".parse().unwrap(),
+            PromiseResult::Failed => "".parse().unwrap(),
+            PromiseResult::Successful(result) => {
+                near_sdk::serde_json::from_slice::<String>(&result)
+                    .unwrap()
+                    .into()
+            }
+        };
+
+        order.set_lpt_id(lpt_id);
+
         self.add_order(user, order);
 
         PromiseOrValue::Value(0.into())
-    }
-
-    #[private]
-    pub fn set_pool_id(&mut self, pool_id: U128) {
-        self.pool_id = pool_id.0 as u64;
     }
 
     #[private]

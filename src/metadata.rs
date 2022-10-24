@@ -10,7 +10,7 @@ pub enum StorageKeys {
     Orders,
     SupportedMarkets,
     Balances,
-    TokenMarkets
+    TokenMarkets,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
@@ -66,6 +66,13 @@ pub struct Order {
     pub sell_token_price: Price,
     pub buy_token_price: Price,
     pub block: BlockHeight,
+    pub lpt_id: String,
+}
+
+impl Order {
+    pub fn set_lpt_id(&mut self, lpt_id: String) {
+        self.lpt_id = lpt_id;
+    }
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]

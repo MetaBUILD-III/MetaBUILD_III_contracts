@@ -28,16 +28,23 @@ impl OraclePriceHandlerHook for Contract {
             env::predecessor_account_id()
         );
 
-        let mut tickers_map = HashMap::new();
-        self.supported_markets.values().for_each(|trade_pair| {
-            tickers_map.insert(trade_pair.sell_ticker_id, trade_pair.sell_token);
-            tickers_map.insert(trade_pair.buy_ticker_id, trade_pair.buy_token);
-        });
+        let ticker_map = self.get_ticker_map();
 
         for price in price_data.price_list {
-            if let Some(token) = tickers_map.get(&price.ticker_id) {
+            if let Some(token) = ticker_map.get(&price.ticker_id) {
                 self.update_or_insert_price(token.clone(), price.clone())
             }
         }
+    }
+}
+
+impl Contract {
+    pub fn get_ticker_map(&mut self) -> HashMap<String, AccountId> {
+        let mut ticker_map = HashMap::new();
+        self.supported_markets.values().for_each(|trade_pair| {
+            ticker_map.insert(trade_pair.sell_ticker_id, trade_pair.sell_token);
+            ticker_map.insert(trade_pair.buy_ticker_id, trade_pair.buy_token);
+        });
+        ticker_map
     }
 }

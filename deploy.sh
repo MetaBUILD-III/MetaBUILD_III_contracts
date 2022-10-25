@@ -2,16 +2,44 @@
 #near login
 
 # build & test
-./build.sh && ./test.sh
+mkdir -p res && ./build.sh && ./test.sh
 
 # clean up previuos deployment
-echo 'y' | near delete contract.mtrading_cl.testnet mtrading_cl.testnet
+echo 'y' | near delete limit_orders.v1.nearlend.testnet v1.nearlend.testnet
 
 # create corresponding accoutns
-near create-account contract.mtrading_cl.testnet --masterAccount mtrading_cl.testnet --initialBalance 20
+near create-account limit_orders.v1.nearlend.testnet --masterAccount v1.nearlend.testnet --initialBalance 10
 
 # redeploy contracts
-near deploy contract.mtrading_cl.testnet \
-    --wasmFile ./res/mtradingcl.wasm \
+near deploy limit_orders.v1.nearlend.testnet \
+    --wasmFile ./res/limit_orders.wasm \
     --initFunction 'new_with_config' \
-    --initArgs '{"owner_id":"contract.mtrading_cl.testnet", "oracle_account_id":"test_ac_oracle.testnet"}'
+    --initArgs '{
+        "owner_id":"limit_orders.v1.nearlend.testnet",
+        "oracle_account_id":"test_ac_oracle.testnet"
+    }'
+
+
+near call limit_orders.v1.nearlend.testnet add_pair '{
+        "pair_data": {
+            
+            "sell_ticker_id": "usdt",
+            "sell_token": "usdt.qa.v1.nearlend.testnet",
+            "sell_token_market": "usdt_market.qa.v1.nearlend.testnet",
+            "buy_ticker_id": "wnear",
+            "buy_token": "wnear.qa.v1.nearlend.testnet"
+        }
+    }' --accountId limit_orders.v1.nearlend.testnet
+
+
+near call limit_orders.v1.nearlend.testnet add_pair '{
+        "pair_data": {
+            "sell_ticker_id": "wnear",
+            "sell_token": "wnear.qa.v1.nearlend.testnet",
+            "sell_token_market": "wnear_market.qa.v1.nearlend.testnet",
+            "buy_ticker_id": "usdt",
+            "buy_token": "usdt.qa.v1.nearlend.testnet"
+        }
+    }' --accountId limit_orders.v1.nearlend.testnet
+
+near view limit_orders.v1.nearlend.testnet view_supported_pairs '{}'

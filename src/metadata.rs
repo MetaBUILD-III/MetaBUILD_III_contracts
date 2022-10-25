@@ -3,8 +3,6 @@ use crate::*;
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{Balance, BlockHeight, BorshStorageKey};
 
-pub const NO_DEPOSIT: Balance = 0;
-
 #[derive(BorshSerialize, BorshStorageKey)]
 pub enum StorageKeys {
     Markets,
@@ -69,6 +67,13 @@ pub struct Order {
     pub sell_token_price: Price,
     pub buy_token_price: Price,
     pub block: BlockHeight,
+    pub lpt_id: String,
+}
+
+impl Order {
+    pub fn set_lpt_id(&mut self, lpt_id: String) {
+        self.lpt_id = lpt_id;
+    }
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
@@ -84,7 +89,7 @@ pub struct OrderView {
     pub fee: WBalance,
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Debug, Clone)]
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(crate = "near_sdk::serde")]
 pub struct TradePair {
     pub sell_ticker_id: String,

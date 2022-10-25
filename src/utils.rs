@@ -15,3 +15,9 @@ pub trait NEP141Token {
 
     fn ft_transfer(&mut self, receiver_id: AccountId, amount: WBalance, memo: Option<String>);
 }
+
+#[ext_contract(ext_market)]
+pub trait MarketInterface {
+    fn borrow(&mut self, amount: WBalance) -> PromiseOrValue<U128>;
+    fn view_market_data(&self) -> MarketData;
+}

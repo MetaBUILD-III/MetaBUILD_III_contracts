@@ -25,6 +25,19 @@ pub struct MarketData {
     pub borrow_rate_ratio: WRatio,
 }
 
+impl Default for MarketData {
+    fn default() -> Self {
+        Self {
+            total_supplies: U128(0),
+            total_borrows: U128(0),
+            total_reserves: U128(0),
+            exchange_rate_ratio: U128(0),
+            interest_rate_ratio: U128(0),
+            borrow_rate_ratio: U128(0),
+        }
+    }
+}
+
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
 #[serde(crate = "near_sdk::serde")]
 pub struct PnLView {
@@ -39,7 +52,7 @@ pub struct Price {
     pub value: BigDecimal,
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, PartialEq, Clone)]
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, PartialEq, Clone, Debug)]
 #[serde(crate = "near_sdk::serde")]
 pub enum OrderStatus {
     Pending,
@@ -48,7 +61,7 @@ pub enum OrderStatus {
     Liquidated,
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone, PartialEq, Debug)]
 #[serde(crate = "near_sdk::serde")]
 pub enum OrderType {
     Buy,
@@ -76,7 +89,7 @@ impl Order {
     }
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, PartialEq, Debug)]
 #[serde(crate = "near_sdk::serde")]
 pub struct OrderView {
     pub order_id: U128,

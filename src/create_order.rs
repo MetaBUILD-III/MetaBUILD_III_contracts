@@ -1,19 +1,14 @@
 use crate::big_decimal::{BigDecimal, WBalance};
 use crate::ref_finance::ref_finance::ext;
 use crate::ref_finance::{Action, SwapAction, TokenReceiverMessage};
-use crate::utils::ext_token;
 use crate::utils::NO_DEPOSIT;
+use crate::utils::{ext_market, ext_token};
 use crate::*;
 use near_sdk::env::current_account_id;
 use near_sdk::{ext_contract, is_promise_success, log, Gas, PromiseResult};
 
 const GAS_FOR_BORROW: Gas = Gas(180_000_000_000_000);
 const GAS_FOR_ADD_LIQUIDITY: Gas = Gas(200_000_000_000_000);
-
-#[ext_contract(ext_market)]
-trait MarketInterface {
-    fn borrow(&mut self, amount: WBalance) -> PromiseOrValue<U128>;
-}
 
 #[ext_contract(ext_self)]
 trait ContractCallbackInterface {

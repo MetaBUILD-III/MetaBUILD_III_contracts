@@ -20,7 +20,7 @@ use crate::metadata::*;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LookupMap, UnorderedMap};
 use near_sdk::json_types::U128;
-use near_sdk::{env, ext_contract, near_bindgen, require, AccountId, Balance, PromiseOrValue};
+use near_sdk::{env, near_bindgen, require, AccountId, Balance, PromiseOrValue};
 use std::collections::HashMap;
 
 #[near_bindgen]
@@ -58,7 +58,7 @@ pub struct Contract {
     /// Protocol profit token_id -> amount
     protocol_profit: LookupMap<AccountId, BigDecimal>,
 
-    /// Ref finance accountId
+    //// Ref finance accountId [ as default "ref-finance-101.testnet" ]
     ref_finance_account: AccountId,
 }
 
@@ -96,8 +96,7 @@ impl Contract {
             pool_id: 0,
             tokens_markets: LookupMap::new(StorageKeys::TokenMarkets),
             protocol_profit: LookupMap::new(StorageKeys::ProtocolProfit),
-            //TODO: set reffinance accountId
-            ref_finance_account: "".parse().unwrap(),
+            ref_finance_account: "ref-finance-101.testnet".parse().unwrap(),
         }
     }
 

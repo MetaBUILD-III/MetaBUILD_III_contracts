@@ -46,7 +46,7 @@ impl Contract {
             BigDecimal::from(order.amount) * order.leverage * order.sell_token_price.value;
         let swap_fee = 10_u128.pow(24);
         let price_impact = 10_u128.pow(24);
-        let expect_amount = self.get_price(order.buy_token.clone()).value
+        let expect_amount = self.get_price(order.buy_token.clone())
             * sell_amount_open
             * BigDecimal::from(10_u128.pow(24) - swap_fee)
             * BigDecimal::from(10_u128.pow(24) - price_impact)
@@ -69,31 +69,33 @@ impl Contract {
         account_id: AccountId,
         sell_token: AccountId,
         buy_token: AccountId,
-        market_borrow_apy: U128,
     ) -> Vec<OrderView> {
-        let ov = OrderView {
-            order_id: U128(0),
-            status: OrderStatus::Pending,
-            order_type: OrderType::Buy,
-            amount: 0,
-            sell_token,
-            buy_token,
-            buy_token_price: U128(0),
-            fee: U128(0),
-        };
-        vec![ov]
+        let orders = self.orders.get(&account_id).unwrap_or_default();
+        let result = orders
+            .iter()
+            .filter_map(|(id, order)| {
+                match order.sell_token == sell_token && order.buy_token == buy_token {
+                    true => Some(OrderView {
+                        order_id: U128(*id as u128),
+                        status: order.status.clone(),
+                        order_type: order.order_type.clone(),
+                        amount: order.amount.clone(),
+                        sell_token: order.sell_token.clone(),
+                        buy_token: order.buy_token.clone(),
+                        buy_token_price: WRatio::from(order.buy_token_price.value),
+                        fee: U128(self.protocol_fee),
+                    }),
+                    false => None,
+                }
+            })
+            .collect::<Vec<OrderView>>();
+        result
     }
 
     pub fn view_pair(&self, sell_token: AccountId, buy_token: AccountId) -> TradePair {
         self.supported_markets
             .get(&(sell_token, buy_token))
             .unwrap()
-    }
-
-    pub fn view_price(&self, token_id: AccountId) -> Price {
-        self.prices.get(&token_id).unwrap_or_else(|| {
-            panic!("Price for token: {} not found", token_id);
-        })
     }
 
     pub fn view_supported_pairs(&self) -> Vec<TradePair> {
@@ -169,5 +171,71 @@ mod tests {
         let result = vec![pair_data, pair_data2];
         let pairs = contract.view_supported_pairs();
         assert_eq!(result, pairs);
+    }
+
+    #[test]
+    fn view_orders_test() {
+        let context = get_context(false);
+        testing_env!(context);
+        let mut contract = Contract::new_with_config(
+            "owner_id.testnet".parse().unwrap(),
+            "oracle_account_id.testnet".parse().unwrap(),
+        );
+
+        let order1 = Order {
+            status: OrderStatus::Pending,
+            order_type: OrderType::Buy,
+            amount: 1,
+            sell_token: "wnear.qa.v1.nearlend.testnet".parse().unwrap(),
+            buy_token: "usdt.qa.v1.nearlend.testnet".parse().unwrap(),
+            leverage: BigDecimal::from(10_u128.pow(24)),
+            sell_token_price: Price {
+                ticker_id: "".to_string(),
+                value: Default::default(),
+            },
+            buy_token_price: Price {
+                ticker_id: "".to_string(),
+                value: Default::default(),
+            },
+            block: 18,
+            lpt_id: "12".to_string(),
+        };
+        contract.add_order(alice(), order1.clone());
+
+        let order2 = Order {
+            status: OrderStatus::Pending,
+            order_type: OrderType::Buy,
+            amount: 2,
+            sell_token: "usdt.qa.v1.nearlend.testnet".parse().unwrap(),
+            buy_token: "wnear.qa.v1.nearlend.testnet".parse().unwrap(),
+            leverage: BigDecimal::from(10_u128.pow(24)),
+            sell_token_price: Price {
+                ticker_id: "".to_string(),
+                value: Default::default(),
+            },
+            buy_token_price: Price {
+                ticker_id: "".to_string(),
+                value: Default::default(),
+            },
+            block: 22,
+            lpt_id: "12".to_string(),
+        };
+        contract.add_order(alice(), order2);
+        let orders = contract.view_orders(
+            alice(),
+            "wnear.qa.v1.nearlend.testnet".parse().unwrap(),
+            "usdt.qa.v1.nearlend.testnet".parse().unwrap(),
+        );
+        let expect_result = vec![OrderView {
+            order_id: U128(1),
+            status: order1.status,
+            order_type: order1.order_type,
+            amount: order1.amount,
+            sell_token: order1.sell_token,
+            buy_token: order1.buy_token,
+            buy_token_price: WRatio::from(order1.buy_token_price.value),
+            fee: U128(contract.protocol_fee),
+        }];
+        assert_eq!(expect_result, orders);
     }
 }

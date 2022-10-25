@@ -2,6 +2,8 @@ use crate::*;
 use near_sdk::ext_contract;
 use near_sdk::serde::{Deserialize, Serialize};
 
+pub type LptId = String;
+
 #[ext_contract(ref_finance)]
 trait RefFinanceInterface {
     fn add_liquidity(
@@ -14,6 +16,14 @@ trait RefFinanceInterface {
         min_amount_x: U128,
         min_amount_y: U128,
     );
+
+    fn remove_liquidity(
+        &mut self,
+        lpt_id: LptId,
+        amount: U128,
+        min_amount_x: U128,
+        min_amount_y: U128,
+    ) -> (U128, U128);
 }
 
 /// Message parameters to receive via token function call.

@@ -13,9 +13,12 @@ impl Contract {
             panic!("Orders for account: {} not found", account_id);
         });
 
-        let order = orders.get(&(order_id.0 as u64)).unwrap_or_else(|| {
-            panic!("Order with id: {} not found", order_id.0);
-        }).clone();
+        let order = orders
+            .get(&(order_id.0 as u64))
+            .unwrap_or_else(|| {
+                panic!("Order with id: {} not found", order_id.0);
+            })
+            .clone();
 
         OrderView {
             order_id,

@@ -10,7 +10,7 @@ use near_sdk::{ext_contract, is_promise_success, log, Gas, PromiseResult};
 #[ext_contract(ext_self)]
 trait ContractCallbackInterface {
     fn remove_liquidity_callback(&self, order_id: U128, swap_fee: U128, price_impact: U128);
-    fn cancel_swap_callback(&mut self, order_id: U128, swap_fee: U128, price_impact: U128);
+    fn order_cancel_swap_callback(&mut self, order_id: U128, swap_fee: U128, price_impact: U128);
     fn market_data_callback(
         &mut self,
         order_id: U128,
@@ -58,9 +58,14 @@ impl Contract {
     }
 
     #[private]
-    pub fn remove_liquidity_callback(&self, order_id: U128, swap_fee: U128, price_impact: U128) {
+    pub fn remove_liquidity_callback(
+        &mut self,
+        order_id: U128,
+        swap_fee: U128,
+        price_impact: U128,
+    ) {
         require!(is_promise_success(), "Some problem with remove liquidity");
-        self.swap(order_id, swap_fee, price_impact);
+        self.order_cancel_swap_callback(order_id, swap_fee, price_impact);
     }
 
     fn swap(&self, order_id: U128, swap_fee: U128, price_impact: U128) {
@@ -106,12 +111,17 @@ impl Contract {
                 ext_self::ext(current_account_id())
                     .with_static_gas(Gas(20))
                     .with_attached_deposit(NO_DEPOSIT)
-                    .cancel_swap_callback(order_id, swap_fee, price_impact),
+                    .order_cancel_swap_callback(order_id, swap_fee, price_impact),
             );
     }
 
     #[private]
-    pub fn cancel_swap_callback(&mut self, order_id: U128, swap_fee: U128, price_impact: U128) {
+    pub fn order_cancel_swap_callback(
+        &mut self,
+        order_id: U128,
+        swap_fee: U128,
+        price_impact: U128,
+    ) {
         require!(is_promise_success(), "Some problem tish swap tokens");
 
         let orders = self.orders.get(&signer_account_id()).unwrap_or_else(|| {

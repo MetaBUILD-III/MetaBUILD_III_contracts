@@ -1,3 +1,5 @@
+extern crate core;
+
 mod big_decimal;
 mod cancel_order;
 mod common;

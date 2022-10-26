@@ -22,7 +22,7 @@ impl Contract {
     }
 
     pub fn get_market_by_token(&self, token: AccountId) -> AccountId {
-        self.tokens_markets.get(&token).unwrap_or_else(||{
+        self.tokens_markets.get(&token).unwrap_or_else(|| {
             panic!("Market for token: {} was not found", token);
         })
     }

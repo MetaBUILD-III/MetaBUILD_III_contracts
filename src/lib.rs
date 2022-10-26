@@ -2,7 +2,6 @@ mod big_decimal;
 mod cancel_order;
 mod common;
 mod config;
-
 mod create_order;
 mod deposit;
 mod execute_order;
@@ -15,13 +14,13 @@ mod ref_finance;
 mod utils;
 mod view;
 
-use crate::big_decimal::WBalance;
+use crate::big_decimal::*;
 use crate::config::Config;
 use crate::metadata::*;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LookupMap, UnorderedMap};
 use near_sdk::json_types::U128;
-use near_sdk::{env, ext_contract, near_bindgen, require, AccountId, Balance, PromiseOrValue};
+use near_sdk::{env, near_bindgen, require, AccountId, Balance, PromiseOrValue};
 use std::collections::HashMap;
 
 #[near_bindgen]
@@ -50,13 +49,16 @@ pub struct Contract {
 
     config: Config,
 
-    /// Pool which should be used for swapping.
+    /// Pool id in Ref Finance
     pool_id: u64,
 
     /// token id -> market id
     tokens_markets: LookupMap<AccountId, AccountId>,
 
-    /// Ref finance accountId [ as default "ref-finance-101.testnet" ]
+    /// Protocol profit token_id -> amount
+    protocol_profit: LookupMap<AccountId, BigDecimal>,
+
+    //// Ref finance accountId [ as default "ref-finance-101.testnet" ]
     ref_finance_account: AccountId,
 }
 
@@ -93,6 +95,7 @@ impl Contract {
             balances: UnorderedMap::new(StorageKeys::Balances),
             pool_id: 0,
             tokens_markets: LookupMap::new(StorageKeys::TokenMarkets),
+            protocol_profit: LookupMap::new(StorageKeys::ProtocolProfit),
             ref_finance_account: "ref-finance-101.testnet".parse().unwrap(),
         }
     }
@@ -105,11 +108,6 @@ impl Contract {
     #[private]
     fn set_protocol_fee(&mut self, fee: U128) {
         self.protocol_fee = fee.0
-    }
-
-    #[private]
-    fn set_ref_finance_account(&mut self, ref_finance_account: AccountId) {
-        self.ref_finance_account = ref_finance_account
     }
 
     #[private]

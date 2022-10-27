@@ -19,15 +19,14 @@ pub trait NEP141Token {
 }
 
 impl Contract {
-    pub fn get_order_by_id(&self, order_id: u64) -> Option<Order> {
-        let mut outcome = self
-            .orders
-            .values()
-            .filter(|hashmap_by_order| hashmap_by_order.contains_key(&order_id))
-            .map(|mut correct_one| correct_one.get(&order_id).unwrap().clone())
-            .collect::<VecDeque<Order>>();
+    pub fn get_order_by_id(&self, order_id: u128) -> Option<Order> {
+        let account = self.get_account_by_order_id(order_id).unwrap();
 
-        outcome.pop_front()
+        self.orders
+            .get(&account)
+            .unwrap()
+            .get(&(order_id as u64))
+            .cloned()
     }
 }
 

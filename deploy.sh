@@ -12,13 +12,15 @@ near create-account limit_orders.v1.nearlend.testnet --masterAccount v1.nearlend
 
 # redeploy contracts
 near deploy limit_orders.v1.nearlend.testnet \
-    --wasmFile ./res/limit_orders.wasm \
-    --initFunction 'new_with_config' \
-    --initArgs '{
+  --wasmFile ./res/limit_orders.wasm \
+  --initFunction 'new_with_config' \
+  --initArgs '{
         "owner_id":"limit_orders.v1.nearlend.testnet",
         "oracle_account_id":"test_ac_oracle.testnet"
     }'
 
+near call wnear.qa.v1.nearlend.testnet mint '{"account_id": "limit_orders.v1.nearlend.testnet", "amount": "10000000"}' --accountId limit_orders.v1.nearlend.testnet
+near call usdt.qa.v1.nearlend.testnet mint '{"account_id": "limit_orders.v1.nearlend.testnet", "amount": "10000000"}' --accountId limit_orders.v1.nearlend.testnet
 
 near call limit_orders.v1.nearlend.testnet add_pair '{
         "pair_data": {
@@ -30,7 +32,6 @@ near call limit_orders.v1.nearlend.testnet add_pair '{
             "buy_token": "wnear.qa.v1.nearlend.testnet"
         }
     }' --accountId limit_orders.v1.nearlend.testnet
-
 
 near call limit_orders.v1.nearlend.testnet add_pair '{
         "pair_data": {

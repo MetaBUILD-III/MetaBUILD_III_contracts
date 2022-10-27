@@ -1,5 +1,6 @@
 use crate::*;
 use near_sdk::ext_contract;
+use std::hash::Hash;
 
 pub const NO_DEPOSIT: Balance = 0;
 
@@ -14,6 +15,18 @@ pub trait NEP141Token {
     );
 
     fn ft_transfer(&mut self, receiver_id: AccountId, amount: WBalance, memo: Option<String>);
+}
+
+impl Contract {
+    pub fn get_order_by(&self, order_id: u128) -> Option<Order> {
+        let account = self.get_account_by(order_id).unwrap();
+
+        self.orders
+            .get(&account)
+            .unwrap()
+            .get(&(order_id as u64))
+            .cloned()
+    }
 }
 
 #[ext_contract(ext_market)]

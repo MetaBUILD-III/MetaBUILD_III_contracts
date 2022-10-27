@@ -4,6 +4,7 @@ use crate::*;
 use near_sdk::env::current_account_id;
 use near_sdk::{ext_contract, is_promise_success, Gas};
 use std::collections::VecDeque;
+
 #[ext_contract(ext_self)]
 trait ContractCallbackInterface {
     fn remove_liquidity_for_execute_order_callback(&self, order: Order, order_id: U128);
@@ -17,7 +18,7 @@ impl Contract {
             "There is no such order to be executed"
         );
 
-        let order = self.get_order_by_id(order_id.0 as u64).unwrap();
+        let order = self.get_order_by_id(order_id.0 as u64).unwrap().clone();
 
         // TODO set real arguments
         let amount = 1;
@@ -53,7 +54,19 @@ impl Contract {
         } else {
             self.mark_order_as_executed(order, order_id);
 
-            // todo add step to reward the executor
+            let reward_executor_amount = order.amount.clone() * 10u128.pow(23); // reward is 0.1% from sell_token_amount
+
+            self.increase_balance(
+                env::signer_account_id(),
+                order.sell_token.clone(),
+                reward_executor_amount,
+            );
+
+            ext_token::ext(order.sell_token.clone())
+                .with_static_gas(Gas(10))
+                .with_attached_deposit(1)
+                .ft_transfer(env::signer_account_id(), U128::from(reward_executor_amount));
+
             return PromiseOrValue::Value(order_id);
         }
     }

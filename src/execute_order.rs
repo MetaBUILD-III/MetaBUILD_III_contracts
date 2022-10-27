@@ -14,10 +14,7 @@ trait ContractCallbackInterface {
 impl Contract {
     pub fn execute_order(&self, order_id: U128) -> PromiseOrValue<U128> {
         let order = self.get_order_by_id(order_id.0);
-        require!(
-            order.is_some(),
-            "There is no such order to be executed"
-        );
+        require!(order.is_some(), "There is no such order to be executed");
 
         let order = order.unwrap().clone();
         // TODO set real arguments

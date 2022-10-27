@@ -19,6 +19,7 @@ impl Contract {
             "There is no such order to be executed"
         );
 
+        let order = order.unwrap().clone();
         // TODO set real arguments
         let amount = 1;
         let min_amount_x = order.amount;
@@ -28,7 +29,7 @@ impl Contract {
             .with_static_gas(Gas(10))
             .with_attached_deposit(1)
             .remove_liquidity(
-                order.unwrap().clone().lpt_id.clone(),
+                order.lpt_id.clone(),
                 U128(amount),
                 U128(min_amount_x),
                 U128(min_amount_y),
@@ -37,7 +38,7 @@ impl Contract {
                 ext_self::ext(current_account_id())
                     .with_static_gas(Gas(5))
                     .with_attached_deposit(NO_DEPOSIT)
-                    .remove_liquidity_for_execute_order_callback(order.unwrap().clone(), order_id),
+                    .remove_liquidity_for_execute_order_callback(order, order_id),
             )
             .into()
     }

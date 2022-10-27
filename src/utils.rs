@@ -1,6 +1,5 @@
 use crate::*;
 use near_sdk::ext_contract;
-use std::collections::VecDeque;
 use std::hash::Hash;
 
 pub const NO_DEPOSIT: Balance = 0;
@@ -19,8 +18,8 @@ pub trait NEP141Token {
 }
 
 impl Contract {
-    pub fn get_order_by_id(&self, order_id: u128) -> Option<Order> {
-        let account = self.get_account_by_order_id(order_id).unwrap();
+    pub fn get_order_by(&self, order_id: u128) -> Option<Order> {
+        let account = self.get_account_by(order_id).unwrap();
 
         self.orders
             .get(&account)

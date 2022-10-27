@@ -3,7 +3,6 @@ use crate::utils::{ext_market, ext_token, NO_DEPOSIT};
 use crate::*;
 use near_sdk::env::current_account_id;
 use near_sdk::{ext_contract, is_promise_success, Gas};
-use std::collections::VecDeque;
 
 #[ext_contract(ext_self)]
 trait ContractCallbackInterface {
@@ -13,7 +12,7 @@ trait ContractCallbackInterface {
 #[near_bindgen]
 impl Contract {
     pub fn execute_order(&self, order_id: U128) -> PromiseOrValue<U128> {
-        let order = self.get_order_by_id(order_id.0);
+        let order = self.get_order_by(order_id.0);
         require!(order.is_some(), "There is no such order to be executed");
 
         let order = order.unwrap().clone();
@@ -91,13 +90,13 @@ impl Contract {
         };
 
         self.insert_order_for_user(
-            &self.get_account_by_order_id(order_id.0).unwrap(), // assert there is always some user
+            &self.get_account_by(order_id.0).unwrap(), // assert there is always some user
             new_order.clone(),
             order_id.clone().0 as u64,
         );
     }
 
-    pub fn get_account_by_order_id(&self, order_id: u128) -> Option<AccountId> {
+    pub fn get_account_by(&self, order_id: u128) -> Option<AccountId> {
         let mut account: Option<AccountId> = None;
         for (account_id, users_order) in self.orders.iter() {
             if users_order.contains_key(&(order_id as u64)) {

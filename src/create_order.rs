@@ -179,7 +179,7 @@ impl Contract {
             "Amount should be a positive number"
         );
 
-        let token_market = self.get_market_by_token(token);
+        let token_market = self.get_market_by(token);
 
         ext_market::ext(token_market)
             .with_static_gas(GAS_FOR_BORROW)

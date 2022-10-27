@@ -120,6 +120,43 @@ impl Contract {
             panic!("Price for token: {} not found", token_id);
         })
     }
+
+    pub fn cancel_order_view(
+        &self,
+        account_id: AccountId,
+        order_id: U128,
+        market_data: MarketData
+    ) -> CancelOrderView {
+        let orders = self.orders.get(&account_id).unwrap_or_else(|| {
+            panic!("Orders for account: {} not found", account_id);
+        });
+
+        let order = orders.get(&(order_id.0 as u64)).unwrap_or_else(|| {
+            panic!("Order with id: {} not found", order_id.0);
+        });
+        
+        let buy_token =
+            BigDecimal::from(order.amount)
+            * order.leverage
+            * order.sell_token_price.value
+            / order.buy_token_price.value;
+
+        let sell_token = BigDecimal::from(order.amount) * order.leverage;
+
+        let open_price = order.buy_token_price.clone();
+
+        let close_price = self.get_price(order.buy_token.clone());
+
+        let calc_pnl =  self.calculate_pnl(account_id, order_id, market_data);
+
+        CancelOrderView {
+            buy_token_amount: WRatio::from(buy_token),
+            sell_token_amount: WRatio::from(sell_token),
+            open_price: open_price,
+            close_price: WRatio::from(close_price),
+            pnl: calc_pnl,
+        }
+    }
 }
 
 #[cfg(test)]

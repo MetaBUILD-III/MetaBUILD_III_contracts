@@ -38,7 +38,7 @@ impl Default for MarketData {
     }
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct PnLView {
     pub is_profit: bool,
@@ -110,4 +110,14 @@ pub struct TradePair {
     pub sell_token_market: AccountId,
     pub buy_ticker_id: String,
     pub buy_token: AccountId,
+}
+
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
+#[serde(crate = "near_sdk::serde")]
+pub struct CancelOrderView {
+    pub buy_token_amount: WRatio,
+    pub sell_token_amount: WRatio,
+    pub open_price: WRatio,
+    pub close_price: WRatio,
+    pub pnl: PnLView,
 }

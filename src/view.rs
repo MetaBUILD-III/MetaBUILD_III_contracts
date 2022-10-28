@@ -131,12 +131,12 @@ impl Contract {
         order_id: U128,
         market_data: MarketData
     ) -> CancelOrderView {
-        let orders = self.orders.get(&account_id).unwrap_or_else(|| {
+        let _orders = self.orders.get(&account_id).unwrap_or_else(|| {
             panic!("Orders for account: {} not found", account_id);
         });
 
-        let order = orders.get(&(order_id.0 as u64)).unwrap_or_else(|| {
-            panic!("Order with id: {} not found", order_id.0);
+        let order = self.get_order_by(order_id.0).unwrap_or_else(|| {
+            panic!("Order with id: {} not found", order_id.0); 
         });
         
         let buy_token =
@@ -156,7 +156,7 @@ impl Contract {
         CancelOrderView {
             buy_token_amount: WRatio::from(buy_token),
             sell_token_amount: WRatio::from(sell_token),
-            open_price: open_price,
+            open_price: WRatio::from(open_price.value),
             close_price: WRatio::from(close_price),
             pnl: calc_pnl,
         }

@@ -117,7 +117,7 @@ pub struct TradePair {
 pub struct CancelOrderView {
     pub buy_token_amount: WRatio,
     pub sell_token_amount: WRatio,
-    pub open_price: Price,
+    pub open_price: WRatio,
     pub close_price: WRatio,
     pub pnl: PnLView,
 }

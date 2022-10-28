@@ -1,6 +1,5 @@
 use crate::*;
 use near_sdk::ext_contract;
-use std::hash::Hash;
 
 pub const NO_DEPOSIT: Balance = 0;
 

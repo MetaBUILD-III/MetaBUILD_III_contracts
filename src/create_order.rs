@@ -5,7 +5,7 @@ use crate::utils::NO_DEPOSIT;
 use crate::utils::{ext_market, ext_token};
 use crate::*;
 use near_sdk::env::current_account_id;
-use near_sdk::{ext_contract, is_promise_success, log, Gas, PromiseResult};
+use near_sdk::{ext_contract, is_promise_success, log, Gas, PromiseResult, serde_json};
 
 const GAS_FOR_BORROW: Gas = Gas(180_000_000_000_000);
 const GAS_FOR_ADD_LIQUIDITY: Gas = Gas(200_000_000_000_000);
@@ -149,16 +149,18 @@ impl Contract {
 
         order.set_lpt_id(lpt_id);
 
-        self.add_order(user, order);
+        self.order_nonce += 1;
+        let order_id = self.order_nonce;
+        self.insert_order_for_user(&user, order, order_id);
 
         PromiseOrValue::Value(0.into())
     }
 
     #[private]
-    pub fn add_order(&mut self, account_id: AccountId, order: Order) {
+    pub fn add_order(&mut self, account_id: AccountId, order: String) {
         self.order_nonce += 1;
         let order_id = self.order_nonce;
-
+        let order = serde_json::from_str(order.as_str()).unwrap();
         self.insert_order_for_user(&account_id, order, order_id);
     }
 

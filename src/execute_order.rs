@@ -1,5 +1,5 @@
-use crate::ref_finance::{ref_finance, Action, SwapAction, TokenReceiverMessage};
-use crate::utils::{ext_market, ext_token, NO_DEPOSIT};
+use crate::ref_finance::{ref_finance};
+use crate::utils::{ ext_token, NO_DEPOSIT};
 use crate::*;
 use near_sdk::env::current_account_id;
 use near_sdk::{ext_contract, is_promise_success, Gas};

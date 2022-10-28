@@ -21,7 +21,7 @@ impl Contract {
         self.view_price(token_id_1).value / self.view_price(token_id_2).value
     }
 
-    pub fn get_market_by_token(&self, token: AccountId) -> AccountId {
+    pub fn get_market_by(&self, token: AccountId) -> AccountId {
         self.tokens_markets.get(&token).unwrap_or_else(|| {
             panic!("Market for token: {} was not found", token);
         })

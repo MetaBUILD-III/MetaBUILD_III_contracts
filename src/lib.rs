@@ -1,3 +1,5 @@
+extern crate core;
+
 mod big_decimal;
 mod cancel_order;
 mod common;
@@ -96,7 +98,7 @@ impl Contract {
             pool_id: 0,
             tokens_markets: LookupMap::new(StorageKeys::TokenMarkets),
             protocol_profit: LookupMap::new(StorageKeys::ProtocolProfit),
-            ref_finance_account: "ref-finance-101.testnet".parse().unwrap(),
+            ref_finance_account: "mock.ref_finance.testnet".parse().unwrap(),
         }
     }
 

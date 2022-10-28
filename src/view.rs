@@ -5,26 +5,30 @@ use near_sdk::env::block_height;
 #[near_bindgen]
 impl Contract {
     pub fn view_market_data(&self, market: AccountId) -> MarketData {
-        MarketData {
-            total_supplies: U128(0),
-            total_borrows: U128(0),
-            total_reserves: U128(0),
-            exchange_rate_ratio: U128(0),
-            interest_rate_ratio: U128(0),
-            borrow_rate_ratio: U128(0),
-        }
+        self.market_infos.get(&market).unwrap_or_default()
     }
 
     pub fn view_order(&self, account_id: AccountId, order_id: U128) -> OrderView {
+        let orders = self.orders.get(&account_id).unwrap_or_else(|| {
+            panic!("Orders for account: {} not found", account_id);
+        });
+
+        let order = orders
+            .get(&(order_id.0 as u64))
+            .unwrap_or_else(|| {
+                panic!("Order with id: {} not found", order_id.0);
+            })
+            .clone();
+
         OrderView {
             order_id,
-            status: OrderStatus::Pending,
-            order_type: OrderType::Buy,
-            amount: 0,
-            sell_token: "sell_token".parse().unwrap(),
-            buy_token: "buy_token".parse().unwrap(),
-            buy_token_price: U128(0),
-            fee: U128(0),
+            status: order.status,
+            order_type: order.order_type,
+            amount: order.amount,
+            sell_token: order.sell_token,
+            buy_token: order.buy_token,
+            buy_token_price: WBalance::from(order.buy_token_price.value),
+            fee: U128(3 * 10u128.pow(23)), // hardcore of 0.3 %
         }
     }
 

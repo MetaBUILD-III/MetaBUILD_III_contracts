@@ -159,6 +159,10 @@ impl Contract {
         self.order_nonce += 1;
         let order_id = self.order_nonce;
 
+        self.insert_order_for_user(&account_id, order, order_id);
+    }
+
+    pub fn insert_order_for_user(&mut self, account_id: &AccountId, order: Order, order_id: u64) {
         let mut user_orders_by_id = self.orders.get(&account_id).unwrap_or_default();
         user_orders_by_id.insert(order_id, order);
         self.orders.insert(&account_id, &user_orders_by_id);
@@ -175,7 +179,7 @@ impl Contract {
             "Amount should be a positive number"
         );
 
-        let token_market = self.get_market_by_token(token);
+        let token_market = self.get_market_by(token);
 
         ext_market::ext(token_market)
             .with_static_gas(GAS_FOR_BORROW)

@@ -19,10 +19,13 @@ near deploy limit_orders.v1.nearlend.testnet \
         "oracle_account_id":"limit_orders_oracle.v1.nearlend.testnet"
     }'
 
+
+# register limit orders on tokens
 near call wnear.qa.v1.nearlend.testnet storage_deposit '{"account_id": "limit_orders.v1.nearlend.testnet"}' --accountId limit_orders.v1.nearlend.testnet --amount 0.25 &
 near call usdt.qa.v1.nearlend.testnet storage_deposit '{"account_id": "limit_orders.v1.nearlend.testnet"}' --accountId limit_orders.v1.nearlend.testnet --amount 0.25 &
 wait
 
+# add supported pairs
 near call limit_orders.v1.nearlend.testnet add_pair '{
         "pair_data": {            
             "sell_ticker_id": "usdt",
@@ -46,6 +49,37 @@ near call limit_orders.v1.nearlend.testnet add_pair '{
 wait
 near view limit_orders.v1.nearlend.testnet view_supported_pairs '{}'
 
+# add mock prices
+near call limit_orders.v1.nearlend.testnet update_or_insert_price '{
+    "token_id":"usdt.qa.v1.nearlend.testnet",
+    "price":{
+        "ticker_id":"usdt",
+        "value":"1.01"
+    }
+}' --accountId limit_orders.v1.nearlend.testnet
+
+near call limit_orders.v1.nearlend.testnet update_or_insert_price '{
+    "token_id":"usdt.qa.v1.nearlend.testnet",
+    "price":{
+        "ticker_id":"usdt",
+        "value":"1.01"
+    }
+}' --accountId limit_orders.v1.nearlend.testnet &
+
+near call limit_orders.v1.nearlend.testnet update_or_insert_price '{
+    "token_id":"wnear.qa.v1.nearlend.testnet",
+    "price":{
+        "ticker_id":"wnear",
+        "value":"3.07"
+    }
+}' --accountId limit_orders.v1.nearlend.testnet &
+
+wait
+near view limit_orders.v1.nearlend.testnet view_price '{"token_id":"usdt.qa.v1.nearlend.testnet"}'
+near view limit_orders.v1.nearlend.testnet view_price '{"token_id":"wnear.qa.v1.nearlend.testnet"}'
+
+
+# add mock orders
 near call limit_orders.v1.nearlend.testnet add_order '{
         "account_id":"alice.near",
         "order":"{\"status\":\"Executed\",\"order_type\":\"Buy\",\"amount\":1000000100000000000000000000,\"sell_token\":\"usdt.qa.v1.nearlend.testnet\",\"buy_token\":\"wnear.qa.v1.nearlend.testnet\",\"leverage\":\"2.5\",\"sell_token_price\":{\"ticker_id\":\"USDT\",\"value\":\"1.01\"},\"buy_token_price\":{\"ticker_id\":\"WNEAR\",\"value\":\"4.22\"},\"block\":103930916,\"lpt_id\":\"1\"}"

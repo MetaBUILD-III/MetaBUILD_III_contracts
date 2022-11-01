@@ -9,11 +9,24 @@ use near_sdk::{ext_contract, is_promise_success, log, Gas, PromiseResult};
 
 #[ext_contract(ext_self)]
 trait ContractCallbackInterface {
-    fn remove_liquidity_callback(&self, order_id: U128, swap_fee: U128, price_impact: U128);
-    fn order_cancel_swap_callback(&mut self, order_id: U128, swap_fee: U128, price_impact: U128);
+    fn remove_liquidity_callback(
+        &self,
+        order_id: U128,
+        order: Order,
+        swap_fee: U128,
+        price_impact: U128,
+    );
+    fn order_cancel_swap_callback(
+        &mut self,
+        order_id: U128,
+        order: Order,
+        swap_fee: U128,
+        price_impact: U128,
+    );
     fn market_data_callback(
         &mut self,
         order_id: U128,
+        order: Order,
         swap_fee: U128,
         price_impact: U128,
         market_data: Option<MarketData>,
@@ -27,9 +40,12 @@ impl Contract {
             panic!("Orders for account: {} not found", signer_account_id());
         });
 
-        let order = orders.get(&(order_id.0 as u64)).unwrap_or_else(|| {
-            panic!("Order with id: {} not found", order_id.0);
-        });
+        let order = orders
+            .get(&(order_id.0 as u64))
+            .unwrap_or_else(|| {
+                panic!("Order with id: {} not found", order_id.0);
+            })
+            .clone();
 
         //TODO: set real min_amount_x/min_amount_y
         let amount = 1;
@@ -50,10 +66,10 @@ impl Contract {
                     ext_self::ext(current_account_id())
                         .with_static_gas(Gas(5))
                         .with_attached_deposit(NO_DEPOSIT)
-                        .remove_liquidity_callback(order_id, swap_fee, price_impact),
+                        .remove_liquidity_callback(order_id, order, swap_fee, price_impact),
                 );
         } else {
-            self.swap(order_id, swap_fee, price_impact);
+            self.swap(order_id, order, swap_fee, price_impact);
         }
     }
 
@@ -61,22 +77,15 @@ impl Contract {
     pub fn remove_liquidity_callback(
         &mut self,
         order_id: U128,
+        order: Order,
         swap_fee: U128,
         price_impact: U128,
     ) {
         require!(is_promise_success(), "Some problem with remove liquidity");
-        self.order_cancel_swap_callback(order_id, swap_fee, price_impact);
+        self.order_cancel_swap_callback(order_id, order, swap_fee, price_impact);
     }
 
-    fn swap(&self, order_id: U128, swap_fee: U128, price_impact: U128) {
-        let orders = self.orders.get(&signer_account_id()).unwrap_or_else(|| {
-            panic!("Orders for account: {} not found", signer_account_id());
-        });
-
-        let order = orders.get(&(order_id.0 as u64)).unwrap_or_else(|| {
-            panic!("Order with id: {} not found", order_id.0);
-        });
-
+    pub(crate) fn swap(&self, order_id: U128, order: Order, swap_fee: U128, price_impact: U128) {
         let buy_amount =
             BigDecimal::from(order.amount) * order.leverage * order.sell_token_price.value
                 / order.buy_token_price.value;
@@ -111,7 +120,7 @@ impl Contract {
                 ext_self::ext(current_account_id())
                     .with_static_gas(Gas(20))
                     .with_attached_deposit(NO_DEPOSIT)
-                    .order_cancel_swap_callback(order_id, swap_fee, price_impact),
+                    .order_cancel_swap_callback(order_id, order, swap_fee, price_impact),
             );
     }
 
@@ -119,18 +128,11 @@ impl Contract {
     pub fn order_cancel_swap_callback(
         &mut self,
         order_id: U128,
+        order: Order,
         swap_fee: U128,
         price_impact: U128,
     ) {
         require!(is_promise_success(), "Some problem tish swap tokens");
-
-        let orders = self.orders.get(&signer_account_id()).unwrap_or_else(|| {
-            panic!("Orders for account: {} not found", signer_account_id());
-        });
-
-        let order = orders.get(&(order_id.0 as u64)).unwrap_or_else(|| {
-            panic!("Order with id: {} not found", order_id.0);
-        });
 
         let market_id = self.tokens_markets.get(&order.sell_token).unwrap();
         if order.leverage > BigDecimal::from(10_u128.pow(24)) {
@@ -142,11 +144,11 @@ impl Contract {
                     ext_self::ext(current_account_id())
                         .with_static_gas(Gas(3))
                         .with_attached_deposit(NO_DEPOSIT)
-                        .market_data_callback(order_id, swap_fee, price_impact, None),
+                        .market_data_callback(order_id, order, swap_fee, price_impact, None),
                 );
         } else {
             let market_data = self.market_infos.get(&market_id).unwrap();
-            self.market_data_callback(order_id, swap_fee, price_impact, Some(market_data));
+            self.market_data_callback(order_id, order, swap_fee, price_impact, Some(market_data));
         }
     }
 
@@ -154,6 +156,7 @@ impl Contract {
     pub fn market_data_callback(
         &mut self,
         order_id: U128,
+        mut order: Order,
         swap_fee: U128,
         price_impact: U128,
         market_data: Option<MarketData>,
@@ -174,14 +177,6 @@ impl Contract {
             market_data.unwrap()
         };
 
-        let orders = self.orders.get(&signer_account_id()).unwrap_or_else(|| {
-            panic!("Orders for account: {} not found", signer_account_id());
-        });
-
-        let order = orders.get(&(order_id.0 as u64)).unwrap_or_else(|| {
-            panic!("Order with id: {} not found", order_id.0);
-        });
-
         let sell_amount =
             order.sell_token_price.value * BigDecimal::from(order.amount) * order.leverage;
         let pnl = self.calculate_pnl(signer_account_id(), order_id, latest_market_data);
@@ -191,6 +186,12 @@ impl Contract {
             * BigDecimal::from(10_u128.pow(24) - swap_fee.0)
             * BigDecimal::from(10_u128.pow(24) - price_impact.0)
             / order.buy_token_price.value;
+
+        self.increase_balance(
+            signer_account_id(),
+            order.sell_token.clone(),
+            expect_amount.round_u128() - order.amount * order.leverage.round_u128(),
+        );
 
         if pnl.is_profit {
             let protocol_profit = expect_amount - sell_amount - BigDecimal::from(pnl.amount);
@@ -204,5 +205,10 @@ impl Contract {
                 &(BigDecimal::from(token_profit) + protocol_profit),
             );
         }
+
+        let mut orders = self.orders.get(&signer_account_id()).unwrap();
+        order.status = OrderStatus::Canceled;
+        orders.insert(order_id.0 as u64, order);
+        self.orders.insert(&signer_account_id(), &orders);
     }
 }

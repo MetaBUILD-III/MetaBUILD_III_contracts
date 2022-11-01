@@ -38,14 +38,7 @@ impl Contract {
         order_id: U128,
         data: MarketData,
     ) -> PnLView {
-        let orders = self.orders.get(&account_id).unwrap_or_else(|| {
-            panic!("Orders for account: {} not found", account_id);
-        });
-
-        let order = orders.get(&(order_id.0 as u64)).unwrap_or_else(|| {
-            panic!("Order with id: {} not found", order_id.0);
-        });
-
+        let order = self.get_order_by(order_id.0).unwrap();
         let sell_amount_open =
             BigDecimal::from(order.amount) * order.leverage * order.sell_token_price.value;
         let swap_fee = 10_u128.pow(24);
@@ -129,7 +122,7 @@ impl Contract {
         &self,
         account_id: AccountId,
         order_id: U128,
-        market_data: MarketData
+        market_data: MarketData,
     ) -> CancelOrderView {
         let orders = self.orders.get(&account_id).unwrap_or_else(|| {
             panic!("Orders for account: {} not found", account_id);
@@ -138,12 +131,10 @@ impl Contract {
         let order = orders.get(&(order_id.0 as u64)).unwrap_or_else(|| {
             panic!("Order with id: {} not found", order_id.0);
         });
-        
+
         let buy_token =
-            BigDecimal::from(order.amount)
-            * order.leverage
-            * order.sell_token_price.value
-            / order.buy_token_price.value;
+            BigDecimal::from(order.amount) * order.leverage * order.sell_token_price.value
+                / order.buy_token_price.value;
 
         let sell_token = BigDecimal::from(order.amount) * order.leverage;
 
@@ -151,7 +142,7 @@ impl Contract {
 
         let close_price = self.get_price(order.buy_token.clone());
 
-        let calc_pnl =  self.calculate_pnl(account_id, order_id, market_data);
+        let calc_pnl = self.calculate_pnl(account_id, order_id, market_data);
 
         CancelOrderView {
             buy_token_amount: WRatio::from(buy_token),
@@ -161,6 +152,10 @@ impl Contract {
             pnl: calc_pnl,
         }
     }
+
+    pub fn view_liquidation_threshold(&self) -> U128 {
+        U128(self.liquidation_threshold)
+    }
 }
 
 #[cfg(test)]
@@ -169,7 +164,7 @@ mod tests {
 
     use near_sdk::test_utils::test_env::alice;
     use near_sdk::test_utils::VMContextBuilder;
-    use near_sdk::{testing_env, FunctionError, VMContext};
+    use near_sdk::{serde_json, testing_env, FunctionError, VMContext};
 
     fn get_context(is_view: bool) -> VMContext {
         VMContextBuilder::new()
@@ -223,60 +218,41 @@ mod tests {
             "oracle_account_id.testnet".parse().unwrap(),
         );
 
-        let order1 = Order {
-            status: OrderStatus::Pending,
-            order_type: OrderType::Buy,
-            amount: 1,
-            sell_token: "wnear.qa.v1.nearlend.testnet".parse().unwrap(),
-            buy_token: "usdt.qa.v1.nearlend.testnet".parse().unwrap(),
-            leverage: BigDecimal::from(10_u128.pow(24)),
-            sell_token_price: Price {
-                ticker_id: "".to_string(),
-                value: Default::default(),
-            },
-            buy_token_price: Price {
-                ticker_id: "".to_string(),
-                value: Default::default(),
-            },
-            block: 18,
-            lpt_id: "12".to_string(),
-        };
+        let order1 = "{\"status\":\"Executed\",\"order_type\":\"Buy\",\"amount\":1000000100000000000000000000,\"sell_token\":\"usdt.qa.v1.nearlend.testnet\",\"buy_token\":\"wnear.qa.v1.nearlend.testnet\",\"leverage\":\"2.5\",\"sell_token_price\":{\"ticker_id\":\"USDT\",\"value\":\"1.01\"},\"buy_token_price\":{\"ticker_id\":\"WNEAR\",\"value\":\"4.22\"},\"block\":103930916,\"lpt_id\":\"1\"}".to_string();
         contract.add_order(alice(), order1.clone());
 
-        let order2 = Order {
-            status: OrderStatus::Pending,
-            order_type: OrderType::Buy,
-            amount: 2,
-            sell_token: "usdt.qa.v1.nearlend.testnet".parse().unwrap(),
-            buy_token: "wnear.qa.v1.nearlend.testnet".parse().unwrap(),
-            leverage: BigDecimal::from(10_u128.pow(24)),
-            sell_token_price: Price {
-                ticker_id: "".to_string(),
-                value: Default::default(),
-            },
-            buy_token_price: Price {
-                ticker_id: "".to_string(),
-                value: Default::default(),
-            },
-            block: 22,
-            lpt_id: "12".to_string(),
-        };
-        contract.add_order(alice(), order2);
+        let order2 = "{\"status\":\"Canceled\",\"order_type\":\"Buy\",\"amount\":2000001100000000000000000000,\"sell_token\":\"usdt.qa.v1.nearlend.testnet\",\"buy_token\":\"wnear.qa.v1.nearlend.testnet\",\"leverage\":\"1.0\",\"sell_token_price\":{\"ticker_id\":\"USDT\",\"value\":\"0.99\"},\"buy_token_price\":{\"ticker_id\":\"WNEAR\",\"value\":\"3.99\"},\"block\":103930918,\"lpt_id\":\"3\"}".to_string();
+        contract.add_order(alice(), order2.clone());
+
         let orders = contract.view_orders(
             alice(),
-            "wnear.qa.v1.nearlend.testnet".parse().unwrap(),
             "usdt.qa.v1.nearlend.testnet".parse().unwrap(),
+            "wnear.qa.v1.nearlend.testnet".parse().unwrap(),
         );
-        let expect_result = vec![OrderView {
-            order_id: U128(1),
-            status: order1.status,
-            order_type: order1.order_type,
-            amount: order1.amount,
-            sell_token: order1.sell_token,
-            buy_token: order1.buy_token,
-            buy_token_price: WRatio::from(order1.buy_token_price.value),
-            fee: U128(contract.protocol_fee),
-        }];
+        let order1_un: Order = serde_json::from_str(order1.as_str()).unwrap();
+        let order2_un: Order = serde_json::from_str(order2.as_str()).unwrap();
+        let expect_result = vec![
+            OrderView {
+                order_id: U128(2),
+                status: order2_un.status,
+                order_type: order2_un.order_type,
+                amount: order2_un.amount,
+                sell_token: order2_un.sell_token,
+                buy_token: order2_un.buy_token,
+                buy_token_price: WRatio::from(order2_un.buy_token_price.value),
+                fee: U128(contract.protocol_fee),
+            },
+            OrderView {
+                order_id: U128(1),
+                status: order1_un.status,
+                order_type: order1_un.order_type,
+                amount: order1_un.amount,
+                sell_token: order1_un.sell_token,
+                buy_token: order1_un.buy_token,
+                buy_token_price: WRatio::from(order1_un.buy_token_price.value),
+                fee: U128(contract.protocol_fee),
+            },
+        ];
         assert_eq!(expect_result, orders);
     }
 }

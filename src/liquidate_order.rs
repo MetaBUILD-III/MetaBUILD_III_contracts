@@ -5,7 +5,7 @@ use crate::ref_finance::{Action, SwapAction, TokenReceiverMessage};
 use crate::utils::NO_DEPOSIT;
 use crate::utils::{ext_market, ext_token};
 use crate::*;
-use near_sdk::env::{current_account_id, signer_account_id};
+use near_sdk::env::{block_height, current_account_id, signer_account_id};
 use near_sdk::{ext_contract, is_promise_success, Gas, PromiseResult};
 
 #[near_bindgen]
@@ -53,51 +53,41 @@ impl Contract {
                     ext_self::ext(current_account_id())
                         .with_static_gas(Gas(5))
                         .with_attached_deposit(NO_DEPOSIT)
-                        .remove_liquidity_callback(order_id, order, swap_fee, price_impact),
+                        .remove_liquidity_callback(
+                            order_id,
+                            order,
+                            swap_fee,
+                            price_impact,
+                            OrderAction::Liquidate,
+                        ),
                 );
         } else {
-            self.swap(order_id, order, swap_fee, price_impact);
+            self.swap(
+                order_id,
+                order,
+                swap_fee,
+                price_impact,
+                OrderAction::Liquidate,
+            );
         }
     }
 
-    fn final_liquidate(
-        &mut self,
-        order_id: U128,
-        mut order: Order,
-        market_data: MarketData,
-        swap_fee: U128,
-        price_impact: U128,
-    ) {
-        let latest_market_data = market_data;
-        let sell_amount =
-            order.sell_token_price.value * BigDecimal::from(order.amount) * order.leverage;
-        let pnl = self.calculate_pnl(signer_account_id(), order_id, latest_market_data);
-
-        let expect_amount = self.get_price(order.buy_token.clone())
-            * sell_amount
-            * BigDecimal::from(10_u128.pow(24) - swap_fee.0)
-            * BigDecimal::from(10_u128.pow(24) - price_impact.0)
-            / order.buy_token_price.value;
-
-        if pnl.is_profit {
-            let protocol_profit = expect_amount - sell_amount - BigDecimal::from(pnl.amount);
-
-            let token_profit = self
-                .protocol_profit
-                .get(&order.sell_token)
-                .unwrap_or_default();
-            self.protocol_profit.insert(
-                &order.sell_token,
-                &(BigDecimal::from(token_profit) + protocol_profit),
-            );
-        }
+    #[private]
+    pub fn final_liquidate(&mut self, order_id: U128, mut order: Order, market_data: MarketData) {
+        let borrow_fee = BigDecimal::from(
+            market_data.borrow_rate_ratio.0 * (block_height() - order.block) as u128,
+        );
 
         let buy_token_amount =
             BigDecimal::from(order.amount) * order.sell_token_price.value * order.leverage
                 / order.buy_token_price.value;
-        let loss = borrow_fee + buy_token_amount * order.buy_token_price.value - borrow_amount;
-        let is_liquidation_possible =
-            loss >= order.amount * buy_token_price * (10_u128.pow(24) - self.liquidation_threshold);
+        let loss = borrow_fee + buy_token_amount * order.buy_token_price.value
+            - BigDecimal::from(order.amount);
+
+        let is_liquidation_possible = loss
+            >= BigDecimal::from(order.amount)
+                * order.buy_token_price.value
+                * BigDecimal::from(10_u128.pow(24) - self.liquidation_threshold);
 
         require!(is_liquidation_possible, "This order can't be liquidated");
 
@@ -107,8 +97,10 @@ impl Contract {
             order.buy_token.clone(),
             liquidation_incentive,
         );
+        let account = self.get_account_by(order_id.0).unwrap();
+        let mut orders = self.orders.get(&account).unwrap();
         order.status = OrderStatus::Liquidated;
-        orders.insert(&(order_id.0 as u64), order);
+        orders.insert(order_id.0 as u64, order);
         self.orders.insert(&signer_account_id(), &orders);
     }
 }

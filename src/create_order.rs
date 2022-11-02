@@ -5,7 +5,7 @@ use crate::utils::NO_DEPOSIT;
 use crate::utils::{ext_market, ext_token};
 use crate::*;
 use near_sdk::env::current_account_id;
-use near_sdk::{ext_contract, is_promise_success, log, Gas, PromiseResult, serde_json};
+use near_sdk::{ext_contract, is_promise_success, log, serde_json, Gas, PromiseResult};
 
 const GAS_FOR_BORROW: Gas = Gas(180_000_000_000_000);
 const GAS_FOR_ADD_LIQUIDITY: Gas = Gas(200_000_000_000_000);

@@ -15,6 +15,7 @@ trait ContractCallbackInterface {
         order: Order,
         swap_fee: U128,
         price_impact: U128,
+        order_action: OrderAction,
     );
     fn order_cancel_swap_callback(
         &mut self,
@@ -22,6 +23,7 @@ trait ContractCallbackInterface {
         order: Order,
         swap_fee: U128,
         price_impact: U128,
+        order_action: OrderAction,
     );
     fn market_data_callback(
         &mut self,
@@ -29,6 +31,7 @@ trait ContractCallbackInterface {
         order: Order,
         swap_fee: U128,
         price_impact: U128,
+        order_action: OrderAction,
         market_data: Option<MarketData>,
     );
 }
@@ -66,10 +69,16 @@ impl Contract {
                     ext_self::ext(current_account_id())
                         .with_static_gas(Gas(5))
                         .with_attached_deposit(NO_DEPOSIT)
-                        .remove_liquidity_callback(order_id, order, swap_fee, price_impact),
+                        .remove_liquidity_callback(
+                            order_id,
+                            order,
+                            swap_fee,
+                            price_impact,
+                            OrderAction::Cancel,
+                        ),
                 );
         } else {
-            self.swap(order_id, order, swap_fee, price_impact);
+            self.swap(order_id, order, swap_fee, price_impact, OrderAction::Cancel);
         }
     }
 
@@ -82,10 +91,23 @@ impl Contract {
         price_impact: U128,
     ) {
         require!(is_promise_success(), "Some problem with remove liquidity");
-        self.order_cancel_swap_callback(order_id, order, swap_fee, price_impact);
+        self.order_cancel_swap_callback(
+            order_id,
+            order,
+            swap_fee,
+            price_impact,
+            OrderAction::Cancel,
+        );
     }
 
-    pub(crate) fn swap(&self, order_id: U128, order: Order, swap_fee: U128, price_impact: U128) {
+    pub fn swap(
+        &self,
+        order_id: U128,
+        order: Order,
+        swap_fee: U128,
+        price_impact: U128,
+        order_action: OrderAction,
+    ) {
         let buy_amount =
             BigDecimal::from(order.amount) * order.leverage * order.sell_token_price.value
                 / order.buy_token_price.value;
@@ -120,7 +142,13 @@ impl Contract {
                 ext_self::ext(current_account_id())
                     .with_static_gas(Gas(20))
                     .with_attached_deposit(NO_DEPOSIT)
-                    .order_cancel_swap_callback(order_id, order, swap_fee, price_impact),
+                    .order_cancel_swap_callback(
+                        order_id,
+                        order,
+                        swap_fee,
+                        price_impact,
+                        order_action,
+                    ),
             );
     }
 
@@ -131,6 +159,7 @@ impl Contract {
         order: Order,
         swap_fee: U128,
         price_impact: U128,
+        order_action: OrderAction,
     ) {
         require!(is_promise_success(), "Some problem tish swap tokens");
 
@@ -144,11 +173,25 @@ impl Contract {
                     ext_self::ext(current_account_id())
                         .with_static_gas(Gas(3))
                         .with_attached_deposit(NO_DEPOSIT)
-                        .market_data_callback(order_id, order, swap_fee, price_impact, None),
+                        .market_data_callback(
+                            order_id,
+                            order,
+                            swap_fee,
+                            price_impact,
+                            OrderAction::Cancel,
+                            None,
+                        ),
                 );
         } else {
             let market_data = self.market_infos.get(&market_id).unwrap();
-            self.market_data_callback(order_id, order, swap_fee, price_impact, Some(market_data));
+            self.market_data_callback(
+                order_id,
+                order,
+                swap_fee,
+                price_impact,
+                OrderAction::Cancel,
+                Some(market_data),
+            );
         }
     }
 
@@ -159,6 +202,7 @@ impl Contract {
         mut order: Order,
         swap_fee: U128,
         price_impact: U128,
+        order_action: OrderAction,
         market_data: Option<MarketData>,
     ) {
         let latest_market_data = if is_promise_success() {
@@ -177,6 +221,21 @@ impl Contract {
             market_data.unwrap()
         };
 
+        if order_action == OrderAction::Cancel {
+            self.final_order_cancel(order_id, order, latest_market_data, swap_fee, price_impact)
+        } else {
+            self.final_liquidate(order_id, order, latest_market_data);
+        }
+    }
+
+    fn final_order_cancel(
+        &mut self,
+        order_id: U128,
+        mut order: Order,
+        latest_market_data: MarketData,
+        swap_fee: U128,
+        price_impact: U128,
+    ) {
         let sell_amount =
             order.sell_token_price.value * BigDecimal::from(order.amount) * order.leverage;
         let pnl = self.calculate_pnl(signer_account_id(), order_id, latest_market_data);

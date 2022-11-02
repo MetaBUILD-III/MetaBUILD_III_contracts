@@ -92,7 +92,7 @@ impl Contract {
 
         Self {
             market_infos: LookupMap::new(StorageKeys::Markets),
-            protocol_fee: 10u128.pow(24),
+            protocol_fee: 10u128.pow(23),
             prices: UnorderedMap::new(StorageKeys::Prices),
             order_nonce: 0,
             orders: UnorderedMap::new(StorageKeys::Orders),

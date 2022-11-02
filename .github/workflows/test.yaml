@@ -2,7 +2,7 @@ name: meta-build-contracts test automatically
 
 on:
   push:
-    branches: [master]
+    branches: [ master ]
   pull_request:
   workflow_dispatch:
 
@@ -28,15 +28,6 @@ jobs:
             ~/.cargo/.crates2.json
             contracts/target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/contracts/Cargo.lock') }}
-      # linter checks
-      - uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args:  --manifest-path ./Cargo.toml --all -- --check
-      - uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-          args:  --manifest-path ./Cargo.toml -- -A clippy::too-many-arguments -A clippy::ptr-offset-with-cast -A clippy::assign-op-pattern -A clippy::manual-range-contains -D warnings
 
       - run: ./build.sh
       - run: ./test.sh

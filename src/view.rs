@@ -310,7 +310,7 @@ mod tests {
             borrow_rate_ratio: U128(10_u128.pow(24)),
         };
         let pnl = contract.calculate_pnl(alice(), U128(1), market_data);
-        assert!(pnl.is_profit, true);
+        assert!(pnl.is_profit);
         assert_eq!(pnl.amount, U128(256558246105184350685977637895071072256));
     }
 }

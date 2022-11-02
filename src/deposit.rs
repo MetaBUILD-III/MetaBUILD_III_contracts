@@ -63,3 +63,64 @@ impl Contract {
         self.balances.insert(&account_id, &user_balance_by_token);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::str::FromStr;
+
+    pub const INITIAL_BALANCE: Balance = 10_000;
+    pub const AMOUNT_TO_INCREASE: Balance = 20_000;
+    pub const AMOUNT_TO_DECREASE: Balance = 5_000;
+
+    pub fn get_contract() -> (Contract, AccountId, AccountId) {
+        let owner_id: AccountId = "contract.testnet".parse().unwrap();
+        let oracle_account_id: AccountId = "oracle.testnet".parse().unwrap();
+
+        let mut contract = Contract::new_with_config(owner_id, oracle_account_id);
+
+        let user: AccountId = AccountId::from_str("some_example_user.testnet").unwrap();
+        let token: AccountId = AccountId::from_str("some_example_token.testnet").unwrap();
+
+        contract.set_balance(user.clone(), token.clone(), INITIAL_BALANCE);
+
+        assert_eq!(
+            contract.balance_of(user.clone(), token.clone()),
+            INITIAL_BALANCE
+        );
+
+        (contract, user, token)
+    }
+
+    #[test]
+    fn test_successful_increase_decrease_balance() {
+        let (mut contract, user, token) = get_contract();
+
+        contract.increase_balance(user.clone(), token.clone(), AMOUNT_TO_INCREASE);
+
+        assert_eq!(
+            contract.balance_of(user.clone(), token.clone()),
+            AMOUNT_TO_INCREASE + INITIAL_BALANCE
+        );
+
+        contract.decrease_balance(user.clone(), token.clone(), AMOUNT_TO_DECREASE);
+
+        assert_eq!(
+            contract.balance_of(user.clone(), token.clone()),
+            AMOUNT_TO_INCREASE + INITIAL_BALANCE - AMOUNT_TO_DECREASE
+        );
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_fail_decrease_balance() {
+        let (mut contract, user, token) = get_contract();
+
+        assert_eq!(
+            contract.balance_of(user.clone(), token.clone()),
+            INITIAL_BALANCE
+        );
+
+        contract.decrease_balance(user.clone(), token.clone(), 10000 * AMOUNT_TO_DECREASE);
+    }
+}

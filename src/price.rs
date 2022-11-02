@@ -1,7 +1,6 @@
 use crate::big_decimal::BigDecimal;
 use crate::*;
-use std::str::FromStr;
-use near_sdk::{log};
+
 
 #[near_bindgen]
 impl Contract {
@@ -29,7 +28,6 @@ impl Contract {
         })
     }
 
-    #[allow(unused_variables)]
     pub fn get_liquidation_price(
         &self,
         sell_token_amount: U128,
@@ -39,19 +37,38 @@ impl Contract {
         borrow_fee: U128,
         swap_fee: U128,
     ) -> WBigDecimal {
-        let sell_token = AccountId::new_unchecked("usdt.qa.v1.nearlend.testnet".to_owned());
-        let sell_token_price = self.get_price(sell_token);
-
-        let buy_token = AccountId::new_unchecked("wnear.qa.v1.nearlend.testnet".to_owned());
-        let buy_token_price = self.get_price(buy_token);
-        log!("buy_token_price {}", buy_token_price.0);
 
         let collateral_usd = BigDecimal::from(sell_token_amount) * BigDecimal::from(sell_token_price);
+        
         let buy_amount = collateral_usd / BigDecimal::from(buy_token_price);
 
-        let fee = BigDecimal::from_str("0.057").unwrap();
         let borrow_amount = collateral_usd * BigDecimal::from(leverage);
 
-        (BigDecimal::from(buy_token_price) -  (collateral_usd - fee * borrow_amount) / buy_amount).into()
+        (BigDecimal::from(buy_token_price) - (collateral_usd - BigDecimal::from(borrow_fee) * borrow_amount) / buy_amount + BigDecimal::from(sell_token_amount) * BigDecimal::from(swap_fee)).into()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_liquidation_price() {
+        
+        let owner_id: AccountId = "limit_orders.v1.nearlend.testnet".parse().unwrap();
+        let oracle_account_id: AccountId = "limit_orders_oracle.v1.nearlend.testnet".parse().unwrap();
+        
+        let contract = Contract::new_with_config(owner_id, oracle_account_id);
+
+        let result = contract.get_liquidation_price(          
+            U128(1000000000000000000000000), 
+            U128(1000999999999999900000000), 
+            U128(2912000000000000000000000),
+            U128(1),
+            U128(5073566717402330000000000),
+            U128(3000000000000000000000),
+        );
+
+        assert_eq!(result, U128(3000000000000000000000));
     }
 }

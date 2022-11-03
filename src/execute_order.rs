@@ -60,7 +60,6 @@ impl Contract {
 
         ext_token::ext(order.sell_token.clone())
             .with_static_gas(Gas(10))
-            .with_attached_deposit(1)
             .ft_transfer(
                 env::signer_account_id(),
                 U128::from(reward_executor_amount),

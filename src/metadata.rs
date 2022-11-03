@@ -121,3 +121,11 @@ pub struct CancelOrderView {
     pub close_price: WRatio,
     pub pnl: PnLView,
 }
+
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, PartialEq)]
+#[serde(crate = "near_sdk::serde")]
+pub enum OrderAction {
+    Create,
+    Cancel,
+    Liquidate,
+}

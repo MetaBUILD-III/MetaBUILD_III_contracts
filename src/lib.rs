@@ -8,6 +8,7 @@ mod create_order;
 mod deposit;
 mod execute_order;
 mod ft;
+mod liquidate_order;
 mod market;
 mod metadata;
 mod oraclehook;
@@ -60,8 +61,11 @@ pub struct Contract {
     /// Protocol profit token_id -> amount
     protocol_profit: LookupMap<AccountId, BigDecimal>,
 
-    //// Ref finance accountId [ as default "ref-finance-101.testnet" ]
+    /// Ref finance accountId [ as default "ref-finance-101.testnet" ]
     ref_finance_account: AccountId,
+
+    /// Liquidation threshold
+    liquidation_threshold: u128,
 }
 
 impl Default for Contract {
@@ -88,7 +92,7 @@ impl Contract {
 
         Self {
             market_infos: LookupMap::new(StorageKeys::Markets),
-            protocol_fee: 10u128.pow(24),
+            protocol_fee: 10u128.pow(23),
             prices: UnorderedMap::new(StorageKeys::Prices),
             order_nonce: 0,
             orders: UnorderedMap::new(StorageKeys::Orders),
@@ -99,6 +103,7 @@ impl Contract {
             tokens_markets: LookupMap::new(StorageKeys::TokenMarkets),
             protocol_profit: LookupMap::new(StorageKeys::ProtocolProfit),
             ref_finance_account: "mock.ref_finance.testnet".parse().unwrap(),
+            liquidation_threshold: 10_u128.pow(23),
         }
     }
 
@@ -120,5 +125,10 @@ impl Contract {
     #[private]
     pub fn set_pool_id(&mut self, pool_id: U128) {
         self.pool_id = pool_id.0 as u64;
+    }
+
+    #[private]
+    pub fn set_liquidation_threshold(&mut self, threshold: U128) {
+        self.liquidation_threshold = threshold.0;
     }
 }

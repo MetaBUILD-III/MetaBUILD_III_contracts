@@ -28,20 +28,20 @@ wait
 # add supported pairs
 near call limit_orders.v1.nearlend.testnet add_pair '{
         "pair_data": {            
-            "sell_ticker_id": "usdt",
+            "sell_ticker_id": "nUSDT",
             "sell_token": "usdt.qa.v1.nearlend.testnet",
             "sell_token_market": "usdt_market.qa.v1.nearlend.testnet",
-            "buy_ticker_id": "wnear",
+            "buy_ticker_id": "near",
             "buy_token": "wnear.qa.v1.nearlend.testnet"
         }
     }' --accountId limit_orders.v1.nearlend.testnet &
 
 near call limit_orders.v1.nearlend.testnet add_pair '{
         "pair_data": {
-            "sell_ticker_id": "wnear",
+            "sell_ticker_id": "near",
             "sell_token": "wnear.qa.v1.nearlend.testnet",
             "sell_token_market": "wnear_market.qa.v1.nearlend.testnet",
-            "buy_ticker_id": "usdt",
+            "buy_ticker_id": "nUSDT",
             "buy_token": "usdt.qa.v1.nearlend.testnet"
         }
     }' --accountId limit_orders.v1.nearlend.testnet &
@@ -53,23 +53,15 @@ near view limit_orders.v1.nearlend.testnet view_supported_pairs '{}'
 near call limit_orders.v1.nearlend.testnet update_or_insert_price '{
     "token_id":"usdt.qa.v1.nearlend.testnet",
     "price":{
-        "ticker_id":"usdt",
+        "ticker_id":"nUSDT",
         "value":"1.01"
     }
 }' --accountId limit_orders.v1.nearlend.testnet
 
 near call limit_orders.v1.nearlend.testnet update_or_insert_price '{
-    "token_id":"usdt.qa.v1.nearlend.testnet",
-    "price":{
-        "ticker_id":"usdt",
-        "value":"1.01"
-    }
-}' --accountId limit_orders.v1.nearlend.testnet &
-
-near call limit_orders.v1.nearlend.testnet update_or_insert_price '{
     "token_id":"wnear.qa.v1.nearlend.testnet",
     "price":{
-        "ticker_id":"wnear",
+        "ticker_id":"near",
         "value":"3.07"
     }
 }' --accountId limit_orders.v1.nearlend.testnet &
@@ -81,25 +73,25 @@ near view limit_orders.v1.nearlend.testnet view_price '{"token_id":"wnear.qa.v1.
 
 # add mock orders
 near call limit_orders.v1.nearlend.testnet add_order '{
-        "account_id":"alice.near",
+        "account_id":"tommylinks.testnet",
         "order":"{\"status\":\"Executed\",\"order_type\":\"Buy\",\"amount\":1000000100000000000000000000,\"sell_token\":\"usdt.qa.v1.nearlend.testnet\",\"buy_token\":\"wnear.qa.v1.nearlend.testnet\",\"leverage\":\"2.5\",\"sell_token_price\":{\"ticker_id\":\"USDT\",\"value\":\"1.01\"},\"buy_token_price\":{\"ticker_id\":\"WNEAR\",\"value\":\"4.22\"},\"block\":103930916,\"lpt_id\":\"1\"}"
     }' --accountId limit_orders.v1.nearlend.testnet &
 
 near call limit_orders.v1.nearlend.testnet add_order '{
-        "account_id":"alice.near",
+        "account_id":"tommylinks.testnet",
         "order":"{\"status\":\"Pending\",\"order_type\":\"Buy\",\"amount\":1000001100000000000000000000,\"sell_token\":\"usdt.qa.v1.nearlend.testnet\",\"buy_token\":\"wnear.qa.v1.nearlend.testnet\",\"leverage\":\"1.5\",\"sell_token_price\":{\"ticker_id\":\"USDT\",\"value\":\"1.01\"},\"buy_token_price\":{\"ticker_id\":\"WNEAR\",\"value\":\"3.01\"},\"block\":103930917,\"lpt_id\":\"2\"}"
     }' --accountId limit_orders.v1.nearlend.testnet &
 
 
 near call limit_orders.v1.nearlend.testnet add_order '{
-        "account_id":"alice.near",
+        "account_id":"tommylinks.testnet",
         "order":"{\"status\":\"Canceled\",\"order_type\":\"Buy\",\"amount\":2000001100000000000000000000,\"sell_token\":\"usdt.qa.v1.nearlend.testnet\",\"buy_token\":\"wnear.qa.v1.nearlend.testnet\",\"leverage\":\"1.0\",\"sell_token_price\":{\"ticker_id\":\"USDT\",\"value\":\"0.99\"},\"buy_token_price\":{\"ticker_id\":\"WNEAR\",\"value\":\"3.99\"},\"block\":103930918,\"lpt_id\":\"3\"}"
     }' --accountId limit_orders.v1.nearlend.testnet &
 
 wait
 
 near view limit_orders.v1.nearlend.testnet view_orders '{
-    "account_id":"alice.near",
+    "account_id":"tommylinks.testnet",
     "buy_token":"wnear.qa.v1.nearlend.testnet",
     "sell_token":"usdt.qa.v1.nearlend.testnet"
 }'

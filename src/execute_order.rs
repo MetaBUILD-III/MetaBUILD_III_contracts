@@ -23,7 +23,6 @@ impl Contract {
 
         ref_finance::ext(self.ref_finance_account.clone())
             .with_static_gas(Gas(10))
-            .with_attached_deposit(1)
             .remove_liquidity(
                 order.lpt_id.clone(),
                 U128(amount),
@@ -45,30 +44,29 @@ impl Contract {
         order: Order,
         order_id: U128,
     ) -> PromiseOrValue<U128> {
-        if !is_promise_success() {
-            panic!("Some problem with remove liquidity");
-        } else {
-            self.mark_order_as_executed(order.clone(), order_id);
+        // if !is_promise_success() {
+        // panic!("Some problem with remove liquidity");
+        // } else {
+        self.mark_order_as_executed(order.clone(), order_id);
 
-            let reward_executor_amount = order.amount.clone() * 10u128.pow(23); // reward is 0.1% from sell_token_amount
+        let reward_executor_amount = order.amount.clone() * 10u128.pow(23); // reward is 0.1% from sell_token_amount
 
-            self.increase_balance(
+        self.increase_balance(
+            env::signer_account_id(),
+            order.sell_token.clone(),
+            reward_executor_amount,
+        );
+
+        ext_token::ext(order.sell_token.clone())
+            .with_static_gas(Gas(10))
+            .with_attached_deposit(1)
+            .ft_transfer(
                 env::signer_account_id(),
-                order.sell_token.clone(),
-                reward_executor_amount,
+                U128::from(reward_executor_amount),
+                Some("Transfer some tokens to executor".to_string()),
             );
 
-            ext_token::ext(order.sell_token.clone())
-                .with_static_gas(Gas(10))
-                .with_attached_deposit(1)
-                .ft_transfer(
-                    env::signer_account_id(),
-                    U128::from(reward_executor_amount),
-                    Some("Transfer some tokens to executor".to_string()),
-                );
-
-            return PromiseOrValue::Value(order_id);
-        }
+        return PromiseOrValue::Value(order_id);
     }
 }
 

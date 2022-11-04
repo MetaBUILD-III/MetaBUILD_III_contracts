@@ -27,24 +27,39 @@ impl Contract {
             panic!("Market for token: {} was not found", token);
         })
     }
+}
 
-    pub fn get_liquidation_price(
-        &self,
+#[near_bindgen]
+impl Contract {
+    pub fn calculate_liquidation_price(
         sell_token_amount: U128,
-        sell_token_price: U128,
-        buy_token_price: U128,
+        sell_token_price: Price,
+        buy_token_price: Price,
         leverage: U128,
         borrow_fee: U128,
         swap_fee: U128,
-    ) -> WBigDecimal {
+    ) -> Price {
+        let volatility_rate = BigDecimal::from(U128(950000000000000000000000));
 
-        let collateral_usd = BigDecimal::from(sell_token_amount) * BigDecimal::from(sell_token_price);
+        let collateral_usd = BigDecimal::from(sell_token_amount ) * BigDecimal::from(sell_token_price.value);
+        let position_amount_usd = collateral_usd * BigDecimal::from(leverage.0);
+        let borrow_amount = collateral_usd * (BigDecimal::from(leverage.0) - BigDecimal::from(1));
+        let buy_amount = position_amount_usd / BigDecimal::from(buy_token_price.value);
+
+        let liquidation_price =
+        (position_amount_usd
+        - volatility_rate
+        * collateral_usd
+        + borrow_amount
+        * BigDecimal::from(borrow_fee)
+        + position_amount_usd
+        * BigDecimal::from(swap_fee))
+        / buy_amount;
         
-        let buy_amount = collateral_usd / BigDecimal::from(buy_token_price);
-
-        let borrow_amount = collateral_usd * BigDecimal::from(leverage);
-
-        (BigDecimal::from(buy_token_price) - (collateral_usd - BigDecimal::from(borrow_fee) * borrow_amount) / buy_amount + BigDecimal::from(sell_token_amount) * BigDecimal::from(swap_fee)).into()
+        Price{ 
+            ticker_id: "usd".to_string(),
+            value: liquidation_price,
+        }
     }
 }
 
@@ -53,22 +68,58 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_liquidation_price() {
+    fn test_calculate_liquidation_price_sell_usdt() {
         
-        let owner_id: AccountId = "limit_orders.v1.nearlend.testnet".parse().unwrap();
-        let oracle_account_id: AccountId = "limit_orders_oracle.v1.nearlend.testnet".parse().unwrap();
-        
-        let contract = Contract::new_with_config(owner_id, oracle_account_id);
+        let sell_token_price = Price {
+            ticker_id: "usdt".to_string(),
+            value: BigDecimal::from(U128(10_u128.pow(24)))
+        };
 
-        let result = contract.get_liquidation_price(          
-            U128(1000000000000000000000000), 
-            U128(1000999999999999900000000), 
-            U128(2912000000000000000000000),
-            U128(1),
-            U128(5073566717402330000000000),
-            U128(3000000000000000000000),
+        let buy_token_price = Price {
+            ticker_id: "wnear".to_string(),
+            value: BigDecimal::from(U128(10_u128.pow(25)))
+        };
+
+        let result = Contract::calculate_liquidation_price(          
+            U128(10_u128.pow(27)), 
+            sell_token_price, 
+            buy_token_price,
+            U128(3),
+            U128(5 * 10_u128.pow(22)),
+            U128(3 * 10_u128.pow(20)),
         );
 
-        assert_eq!(result, U128(3000000000000000000000));
+        assert_eq!(
+            (result.ticker_id, result.value),
+            ("usd".to_string(), BigDecimal::from(U128(7169666666666666666666666)))
+        );
+    }
+
+    #[test]
+    fn test_calculate_liquidation_price_sell_wnear() {
+        
+        let sell_token_price = Price {
+            ticker_id: "wnear".to_string(),
+            value: BigDecimal::from(U128(10_u128.pow(25)))
+        };
+
+        let buy_token_price = Price {
+            ticker_id: "usdt".to_string(),
+            value: BigDecimal::from(U128(10_u128.pow(24)))
+        };
+
+        let result = Contract::calculate_liquidation_price(          
+            U128(10_u128.pow(27)), 
+            sell_token_price, 
+            buy_token_price,
+            U128(2),
+            U128(5 * 10_u128.pow(22)),
+            U128(3 * 10_u128.pow(20)),
+        );
+
+        assert_eq!(
+            (result.ticker_id, result.value),
+            ("usd".to_string(), BigDecimal::from(U128(550300000000000000000000)))
+        );
     }
 }

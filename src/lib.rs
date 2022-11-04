@@ -138,6 +138,6 @@ impl Contract {
 
     #[private]
     pub fn set_volatility_rate(&mut self, rate: U128) {
-        self.volatility_rate = BigDecimal::from(U128(rate.0 * 10_u128.pow(22)))
+        self.volatility_rate = BigDecimal::from(rate)
     }
 }

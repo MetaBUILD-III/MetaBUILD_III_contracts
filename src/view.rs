@@ -176,10 +176,7 @@ impl Contract {
     pub fn view_liquidation_threshold(&self) -> U128 {
         U128(self.liquidation_threshold)
     }
-}
 
-#[near_bindgen]
-impl Contract {
     pub fn calculate_liquidation_price(
         sell_token_amount: U128,
         sell_token_price: Price,

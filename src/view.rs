@@ -178,6 +178,36 @@ impl Contract {
     }
 }
 
+#[near_bindgen]
+impl Contract {
+    pub fn calculate_liquidation_price(
+        sell_token_amount: U128,
+        sell_token_price: Price,
+        buy_token_price: Price,
+        leverage: U128,
+        borrow_fee: U128,
+        swap_fee: U128,
+    ) -> Price {
+        let volatility_rate = BigDecimal::from(U128(95 * 10_u128.pow(22)));
+
+        let collateral_usd =
+            BigDecimal::from(sell_token_amount) * BigDecimal::from(sell_token_price.value);
+        let position_amount_usd = collateral_usd * BigDecimal::from(leverage.0);
+        let borrow_amount = collateral_usd * (BigDecimal::from(leverage.0) - BigDecimal::from(1));
+        let buy_amount = position_amount_usd / BigDecimal::from(buy_token_price.value);
+
+        let liquidation_price = (position_amount_usd - volatility_rate * collateral_usd
+            + borrow_amount * BigDecimal::from(borrow_fee)
+            + position_amount_usd * BigDecimal::from(swap_fee))
+            / buy_amount;
+
+        Price {
+            ticker_id: "usd".to_string(),
+            value: liquidation_price,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -313,4 +343,64 @@ mod tests {
         assert!(pnl.is_profit);
         assert_eq!(pnl.amount, U128(256558246105184350685977637895071072256));
     }
+
+    #[test]
+    fn test_calculate_liquidation_price_sell_usdt() {
+        let sell_token_price = Price {
+            ticker_id: "usdt".to_string(),
+            value: BigDecimal::from(U128(10_u128.pow(24))),
+        };
+    
+        let buy_token_price = Price {
+            ticker_id: "wnear".to_string(),
+            value: BigDecimal::from(U128(10_u128.pow(25))),
+        };
+    
+        let result = Contract::calculate_liquidation_price(
+            U128(10_u128.pow(27)),
+            sell_token_price,
+            buy_token_price,
+            U128(3),
+            U128(5 * 10_u128.pow(22)),
+            U128(3 * 10_u128.pow(20)),
+        );
+    
+        assert_eq!(
+            (result.ticker_id, result.value),
+            (
+                "usd".to_string(),
+                BigDecimal::from(U128(7169666666666666666666666))
+            )
+        );
+    }
+    
+    #[test]
+    fn test_calculate_liquidation_price_sell_wnear() {
+        let sell_token_price = Price {
+            ticker_id: "wnear".to_string(),
+            value: BigDecimal::from(U128(10_u128.pow(25))),
+        };
+    
+        let buy_token_price = Price {
+            ticker_id: "usdt".to_string(),
+            value: BigDecimal::from(U128(10_u128.pow(24))),
+        };
+    
+        let result = Contract::calculate_liquidation_price(
+            U128(10_u128.pow(27)),
+            sell_token_price,
+            buy_token_price,
+            U128(2),
+            U128(5 * 10_u128.pow(22)),
+            U128(3 * 10_u128.pow(20)),
+        );
+    
+        assert_eq!(
+            (result.ticker_id, result.value),
+            (
+                "usd".to_string(),
+                BigDecimal::from(U128(5503 * 10_u128.pow(20)))
+            )
+        );
+    }  
 }

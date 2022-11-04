@@ -61,7 +61,7 @@ pub struct Contract {
     /// Protocol profit token_id -> amount
     protocol_profit: LookupMap<AccountId, BigDecimal>,
 
-    /// Ref finance accountId [ as default "ref-finance-101.testnet" ]
+    /// Ref finance accountId [ as default "dcl.ref-dev.testnet" ]
     ref_finance_account: AccountId,
 
     /// Liquidation threshold
@@ -102,7 +102,7 @@ impl Contract {
             pool_id: 0,
             tokens_markets: LookupMap::new(StorageKeys::TokenMarkets),
             protocol_profit: LookupMap::new(StorageKeys::ProtocolProfit),
-            ref_finance_account: "mock.ref_finance.testnet".parse().unwrap(),
+            ref_finance_account: "dcl.ref-dev.testnet".parse().unwrap(), //  for now TODO check if its gonna change
             liquidation_threshold: 10_u128.pow(23),
         }
     }

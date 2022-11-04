@@ -23,7 +23,6 @@ impl Contract {
 
         ref_finance::ext(self.ref_finance_account.clone())
             .with_static_gas(Gas(10))
-            .with_attached_deposit(1)
             .remove_liquidity(
                 order.lpt_id.clone(),
                 U128(amount),
@@ -60,6 +59,7 @@ impl Contract {
 
         ext_token::ext(order.sell_token.clone())
             .with_static_gas(Gas(10))
+            .with_attached_deposit(1)
             .ft_transfer(
                 env::signer_account_id(),
                 U128::from(reward_executor_amount),

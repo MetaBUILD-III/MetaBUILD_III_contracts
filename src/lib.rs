@@ -102,7 +102,7 @@ impl Contract {
             pool_id: 0,
             tokens_markets: LookupMap::new(StorageKeys::TokenMarkets),
             protocol_profit: LookupMap::new(StorageKeys::ProtocolProfit),
-            ref_finance_account: "dcl.ref-dev.testnet".parse().unwrap(), //  for now TODO check if its gonna change
+            ref_finance_account: "dcl.ref-dev.testnet".parse().unwrap(),
             liquidation_threshold: 10_u128.pow(23),
         }
     }

@@ -1,5 +1,5 @@
 use crate::big_decimal::{BigDecimal, WBalance};
-use crate::ref_finance::ref_finance::ext;
+use crate::ref_finance::ref_finance;
 use crate::ref_finance::{Action, SwapAction, TokenReceiverMessage};
 use crate::utils::NO_DEPOSIT;
 use crate::utils::{ext_market, ext_token};
@@ -10,15 +10,15 @@ use near_sdk::{ext_contract, is_promise_success, log, serde_json, Gas, PromiseRe
 const GAS_FOR_BORROW: Gas = Gas(180_000_000_000_000);
 const GAS_FOR_ADD_LIQUIDITY: Gas = Gas(200_000_000_000_000);
 
-#[ext_contract(ext_self)]
-trait ContractCallbackInterface {
-    fn swap_callback(
-        &mut self,
-        user: AccountId,
-        amount: WBalance,
-        order: Order,
-    ) -> PromiseOrValue<Balance>;
-}
+// #[ext_contract(ext_self)]
+// trait ContractCallbackInterface {
+//     fn swap_callback(
+//         &mut self,
+//         user: AccountId,
+//         amount: WBalance,
+//         order: Order,
+//     ) -> PromiseOrValue<Balance>;
+// }
 
 #[near_bindgen]
 impl Contract {
@@ -52,27 +52,12 @@ impl Contract {
         } else {
             amount
         };
-
         let min_amount_out = U128::from(
             BigDecimal::from(U128::from(amount_to_proceed))
                 * self.calculate_xrate(buy_token.clone(), sell_token.clone()),
         );
-        log!("min_amount_out {}", min_amount_out.0);
 
-        let actions: Vec<Action> = vec![Action::Swap(SwapAction {
-            pool_id: self.pool_id,
-            token_in: buy_token.clone(),
-            amount_in: Some(amount_to_proceed),
-            token_out: sell_token.clone(),
-            min_amount_out,
-        })];
-
-        let action = TokenReceiverMessage::Execute {
-            force: true,
-            actions,
-        };
-
-        let order = Order {
+        let mut order = Order {
             status: OrderStatus::Pending,
             order_type,
             amount: Balance::from(amount_to_proceed),
@@ -84,47 +69,36 @@ impl Contract {
             block: env::block_height(),
             lpt_id: "".to_string(),
         };
-
-        ext_token::ext(sell_token.clone())
-            .with_static_gas(Gas(3))
-            .with_attached_deposit(1)
-            .ft_transfer_call(
-                self.ref_finance_account.clone(),
-                amount,
-                Some("Deposit tokens".to_string()),
-                near_sdk::serde_json::to_string(&action).unwrap(),
-            )
-            .then(
-                ext_self::ext(current_account_id())
-                    .with_static_gas(Gas(20))
-                    .with_attached_deposit(NO_DEPOSIT)
-                    .swap_callback(user, amount, order),
-            )
-            .into()
-    }
-
-    #[private]
-    pub fn swap_callback(
-        &mut self,
-        user: AccountId,
-        amount: WBalance,
-        mut order: Order,
-    ) -> PromiseOrValue<WBalance> {
-        require!(is_promise_success(), "Token swap hasn't end successfully");
+        //
+        // /// Returns how much token you will receive if swap `token_amount_in` of `token_in` for `token_out`.
+        // ref_finance::ext(self.ref_finance_account.clone())
+        //     .get_return(
+        //         200,
+        //         buy_token.clone(),
+        //         Some(amount_to_proceed),
+        //         sell_token.clone(),
+        //     )
+        //     .then(
+        // ext_self::ext(current_account_id())
+        //     .with_static_gas(Gas(20))
+        //     .with_attached_deposit(NO_DEPOSIT)
+        //     .swap_callback(user, amount, order)
+        //     // )
+        //     .into()
 
         self.decrease_balance(user.clone(), order.sell_token.clone(), amount.0);
 
         let left_point = 1;
         let right_point = 2;
 
-        let amount_x = amount;
+        let amount_x = min_amount_out;
         let amount_y: WBalance = U128::from(0);
         let min_amount_x: U128 = amount;
         let min_amount_y: U128 = U128::from(0);
 
         // TODO set real parameters for calling add_liquidity on ref finance after deploying on testnet
 
-        ext(self.ref_finance_account.clone())
+        let lpt_id: String = ref_finance::ext(self.ref_finance_account.clone())
             .with_static_gas(GAS_FOR_ADD_LIQUIDITY)
             .with_attached_deposit(NO_DEPOSIT)
             .add_liquidity(
@@ -135,17 +109,15 @@ impl Contract {
                 amount_y,
                 min_amount_x,
                 min_amount_y,
-            );
+            ).unwrap_json();
 
-        let lpt_id: String = match env::promise_result(0) {
-            PromiseResult::NotReady => "".parse().unwrap(),
-            PromiseResult::Failed => "".parse().unwrap(),
-            PromiseResult::Successful(result) => {
-                near_sdk::serde_json::from_slice::<String>(&result)
-                    .unwrap()
-                    .into()
-            }
-        };
+        // let lpt_id: String = match env::promise_result(1) {
+        //     PromiseResult::NotReady => "".parse().unwrap(),
+        //     PromiseResult::Failed => "".parse().unwrap(),
+        //     PromiseResult::Successful(result) => {
+        //         serde_json::from_slice::<String>(&result).unwrap().into()
+        //     }
+        // };
 
         order.set_lpt_id(lpt_id);
 
@@ -155,6 +127,24 @@ impl Contract {
 
         PromiseOrValue::Value(0.into())
     }
+
+    // #[private]
+    // pub fn swap_callback(
+    //     &mut self,
+    //     user: AccountId,
+    //     amount: WBalance,
+    //     order: Order,
+    // ) -> PromiseOrValue<Balance> {
+    //     let amount_out: Balance = match env::promise_result(0) {
+    //         PromiseResult::NotReady => 0,
+    //         PromiseResult::Failed => 0,
+    //         PromiseResult::Successful(result) => {
+    //             serde_json::from_slice::<WBalance>(&result).unwrap().into()
+    //         }
+    //     };
+    //
+    //     //
+    // }
 
     #[private]
     pub fn add_order(&mut self, account_id: AccountId, order: String) {

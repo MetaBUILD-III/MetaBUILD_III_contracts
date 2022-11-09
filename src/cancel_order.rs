@@ -34,11 +34,19 @@ trait ContractCallbackInterface {
         order_action: OrderAction,
         market_data: Option<MarketData>,
     );
+    fn cancel_order_callback(
+        &mut self,
+        order_id: U128,
+        order: Order,
+        swap_fee: U128,
+        price_impact: U128,
+        order_action: OrderAction,
+    );
 }
 
 #[near_bindgen]
 impl Contract {
-    fn cancel_order(&mut self, order_id: U128, swap_fee: U128, price_impact: U128) {
+    pub fn cancel_order(&mut self, order_id: U128, swap_fee: U128, price_impact: U128) {
         let orders = self.orders.get(&signer_account_id()).unwrap_or_else(|| {
             panic!("Orders for account: {} not found", signer_account_id());
         });
@@ -50,18 +58,71 @@ impl Contract {
             })
             .clone();
 
-        //TODO: set real min_amount_x/min_amount_y
-        let amount = 1;
+        ref_finance::ext(self.ref_finance_account.clone())
+            .with_static_gas(Gas(10))
+            .with_attached_deposit(NO_DEPOSIT)
+            .get_pool(order.lpt_id.clone())
+            .then(
+                ext_self::ext(current_account_id())
+                    .with_static_gas(Gas(5))
+                    .with_attached_deposit(NO_DEPOSIT)
+                    .cancel_order_callback(
+                        order_id,
+                        order,
+                        swap_fee,
+                        price_impact,
+                        OrderAction::Cancel,
+                    ),
+            );
+    }
+
+    #[private]
+    pub fn cancel_order_callback(
+        &mut self,
+        order_id: U128,
+        order: Order,
+        swap_fee: U128,
+        price_impact: U128,
+        order_action: OrderAction,
+    ) {
+        require!(
+            is_promise_success(),
+            "Some problem with pool on ref finance"
+        );
+        let pool_info = match env::promise_result(0) {
+            PromiseResult::NotReady => unreachable!(),
+            PromiseResult::Successful(val) => {
+                if let Ok(pool) = near_sdk::serde_json::from_slice::<PoolInfo>(&val) {
+                    pool
+                } else {
+                    panic!("Some problem with pool parsing.")
+                }
+            }
+            PromiseResult::Failed => panic!("Ref finance not found pool"),
+        };
+
+        require!(
+            pool_info.state == PoolState::Running,
+            "Some problem with pool, please contact with ref finance to support."
+        );
+
+        let buy_amount =
+            BigDecimal::from(order.amount) * order.leverage * order.sell_token_price.value
+                / order.buy_token_price.value;
+        let remove_liquidity_amount =
+            (buy_amount * self.get_price(order.buy_token.clone())).round_u128();
+
         let min_amount_x = order.amount;
         let min_amount_y = 0;
+        require!(pool_info.total_x.0 < remove_liquidity_amount, "Pool not hav enough liquidity");
 
         if order.status == OrderStatus::Pending {
             ref_finance::ext(self.ref_finance_account.clone())
                 .with_static_gas(Gas(10))
-                .with_attached_deposit(1)
+                .with_attached_deposit(NO_DEPOSIT)
                 .remove_liquidity(
-                    order.lpt_id.clone(),
-                    U128(amount),
+                    order.lpt_id.to_string(),
+                    U128(remove_liquidity_amount),
                     U128(min_amount_x),
                     U128(min_amount_y),
                 )
@@ -89,15 +150,10 @@ impl Contract {
         order: Order,
         swap_fee: U128,
         price_impact: U128,
+        order_action: OrderAction,
     ) {
         require!(is_promise_success(), "Some problem with remove liquidity");
-        self.order_cancel_swap_callback(
-            order_id,
-            order,
-            swap_fee,
-            price_impact,
-            OrderAction::Cancel,
-        );
+        self.order_cancel_swap_callback(order_id, order, swap_fee, price_impact, order_action);
     }
 
     pub fn swap(
@@ -113,11 +169,11 @@ impl Contract {
                 / order.buy_token_price.value;
         let min_amount = buy_amount * self.get_price(order.buy_token.clone());
         let actions: Vec<Action> = vec![Action::Swap(SwapAction {
-            pool_id: self.pool_id,
+            pool_id: self.pool_id.clone(),
             token_in: order.buy_token.clone(),
-            amount_in: Some(WRatio::from(buy_amount)),
+            amount_in: Some(WRatio::from(200)),
             token_out: order.sell_token.clone(),
-            min_amount_out: WRatio::from(min_amount),
+            min_amount_out: WRatio::from(200),
         })];
         let action = TokenReceiverMessage::Execute {
             force: true,
@@ -135,7 +191,7 @@ impl Contract {
             .ft_transfer_call(
                 self.ref_finance_account.clone(),
                 WRatio::from(buy_amount),
-                Some("Deposit tokens".to_string()),
+                Some("Swap".to_string()),
                 near_sdk::serde_json::to_string(&action).unwrap(),
             )
             .then(
@@ -161,7 +217,7 @@ impl Contract {
         price_impact: U128,
         order_action: OrderAction,
     ) {
-        require!(is_promise_success(), "Some problem tish swap tokens");
+        require!(is_promise_success(), "Some problem wish swap tokens");
 
         let market_id = self.tokens_markets.get(&order.sell_token).unwrap();
         if order.leverage > BigDecimal::from(10_u128.pow(24)) {
@@ -178,7 +234,7 @@ impl Contract {
                             order,
                             swap_fee,
                             price_impact,
-                            OrderAction::Cancel,
+                            order_action,
                             None,
                         ),
                 );
@@ -189,7 +245,7 @@ impl Contract {
                 order,
                 swap_fee,
                 price_impact,
-                OrderAction::Cancel,
+                order_action,
                 Some(market_data),
             );
         }

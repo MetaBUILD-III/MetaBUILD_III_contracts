@@ -176,6 +176,33 @@ impl Contract {
     pub fn view_liquidation_threshold(&self) -> U128 {
         U128(self.liquidation_threshold)
     }
+
+    pub fn calculate_liquidation_price(
+        &self,
+        sell_token_amount: U128,
+        sell_token_price: U128,
+        buy_token_price: U128,
+        leverage: U128,
+        borrow_fee: U128,
+        swap_fee: U128,
+    ) -> Price {
+        let volatility_rate = BigDecimal::from(U128(95 * 10_u128.pow(22)));
+        let collateral_usd =
+            BigDecimal::from(sell_token_amount) * BigDecimal::from(sell_token_price);
+        let position_amount_usd = collateral_usd * BigDecimal::from(leverage.0);
+        let borrow_amount = collateral_usd * (BigDecimal::from(leverage.0) - BigDecimal::from(1));
+        let buy_amount = position_amount_usd / BigDecimal::from(buy_token_price);
+
+        let liquidation_price = (position_amount_usd - volatility_rate * collateral_usd
+            + borrow_amount * BigDecimal::from(borrow_fee)
+            + position_amount_usd * BigDecimal::from(swap_fee))
+            / buy_amount;
+
+        Price {
+            ticker_id: "usd".to_string(),
+            value: liquidation_price,
+        }
+    }
 }
 
 #[cfg(test)]

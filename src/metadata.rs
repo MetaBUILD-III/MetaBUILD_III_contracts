@@ -129,3 +129,33 @@ pub enum OrderAction {
     Cancel,
     Liquidate,
 }
+
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, PartialEq)]
+#[serde(crate = "near_sdk::serde")]
+pub struct PoolInfo {
+    pub pool_id: String,
+    pub token_x: AccountId,
+    pub token_y: AccountId,
+    pub fee: u64,
+    pub point_delta: u64,
+    pub current_point: i64,
+    pub liquidity: U128,
+    pub liquidity_x: U128,
+    pub max_liquidity_per_point: U128,
+    pub volume_x_in: U128,
+    pub volume_y_in: U128,
+    pub volume_x_out: U128,
+    pub volume_y_out: U128,
+    pub total_liquidity: U128,
+    pub total_order_x: U128,
+    pub total_order_y: U128,
+    pub total_x: U128,
+    pub total_y: U128,
+    pub state: PoolState,
+}
+
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, PartialEq)]
+#[serde(crate = "near_sdk::serde")]
+pub enum PoolState {
+    Running,
+}

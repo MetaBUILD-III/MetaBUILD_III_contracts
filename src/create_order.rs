@@ -60,7 +60,7 @@ impl Contract {
         log!("min_amount_out {}", min_amount_out.0);
 
         let actions: Vec<Action> = vec![Action::Swap(SwapAction {
-            pool_id: self.pool_id,
+            pool_id: self.pool_id.clone(),
             token_in: buy_token.clone(),
             amount_in: Some(amount_to_proceed),
             token_out: sell_token.clone(),
@@ -128,7 +128,7 @@ impl Contract {
             .with_static_gas(GAS_FOR_ADD_LIQUIDITY)
             .with_attached_deposit(NO_DEPOSIT)
             .add_liquidity(
-                U128(self.pool_id as u128),
+                U128(12),
                 left_point,
                 right_point,
                 amount_x,

@@ -6,19 +6,22 @@ use crate::utils::{ext_market, ext_token};
 use crate::*;
 use near_sdk::env::current_account_id;
 use near_sdk::{ext_contract, is_promise_success, log, serde_json, Gas, PromiseResult};
+use std::task::Wake;
 
 const GAS_FOR_BORROW: Gas = Gas(180_000_000_000_000);
 const GAS_FOR_ADD_LIQUIDITY: Gas = Gas(200_000_000_000_000);
 
-// #[ext_contract(ext_self)]
-// trait ContractCallbackInterface {
-//     fn swap_callback(
-//         &mut self,
-//         user: AccountId,
-//         amount: WBalance,
-//         order: Order,
-//     ) -> PromiseOrValue<Balance>;
-// }
+#[ext_contract(ext_self)]
+trait ContractCallbackInterface {
+    fn deposit_callback(
+        &mut self,
+        user: AccountId,
+        amount: WBalance,
+        order: Order,
+    ) -> PromiseOrValue<Balance>;
+
+    fn add_liquidity_callback(&mut self, user: AccountId, order: Order) -> PromiseOrValue<Balance>;
+}
 
 #[near_bindgen]
 impl Contract {
@@ -52,7 +55,7 @@ impl Contract {
         } else {
             amount
         };
-        let min_amount_out = U128::from(
+        let amount_on_other_token = U128::from(
             BigDecimal::from(U128::from(amount_to_proceed))
                 * self.calculate_xrate(buy_token.clone(), sell_token.clone()),
         );
@@ -69,55 +72,78 @@ impl Contract {
             block: env::block_height(),
             lpt_id: "".to_string(),
         };
-        //
-        // /// Returns how much token you will receive if swap `token_amount_in` of `token_in` for `token_out`.
-        // ref_finance::ext(self.ref_finance_account.clone())
-        //     .get_return(
-        //         200,
-        //         buy_token.clone(),
-        //         Some(amount_to_proceed),
-        //         sell_token.clone(),
-        //     )
-        //     .then(
-        // ext_self::ext(current_account_id())
-        //     .with_static_gas(Gas(20))
-        //     .with_attached_deposit(NO_DEPOSIT)
-        //     .swap_callback(user, amount, order)
-        //     // )
-        //     .into()
+
+        ext_token::ext(sell_token.clone())
+            .with_static_gas(Gas(200))
+            .with_attached_deposit(1)
+            .ft_transfer_call(
+                self.ref_finance_account.clone(),
+                amount_to_proceed,
+                Some("Deposit tokens".to_string()),
+                serde_json::to_string(&"Deposit").unwrap(),
+            )
+            .then(
+                ext_self::ext(current_account_id())
+                    .with_static_gas(Gas(200))
+                    .with_attached_deposit(NO_DEPOSIT)
+                    .deposit_callback(user, amount_to_proceed, order),
+            )
+            .into()
+    }
+
+    #[private]
+    pub fn deposit_callback(
+        &mut self,
+        user: AccountId,
+        amount: WBalance,
+        mut order: Order,
+    ) -> PromiseOrValue<WBalance> {
+        require!(is_promise_success(), "Some problem with deposit");
 
         self.decrease_balance(user.clone(), order.sell_token.clone(), amount.0);
 
-        let left_point = 1;
-        let right_point = 2;
+        let left_point = -11400;
+        let right_point = -11360;
 
-        let amount_x = min_amount_out;
-        let amount_y: WBalance = U128::from(0);
-        let min_amount_x: U128 = amount;
-        let min_amount_y: U128 = U128::from(0);
+        let amount_x: WBalance = amount;
+        let amount_y = U128::from(0);
+        let min_amount_x = U128::from(0);
+        let min_amount_y = U128::from(0);
 
-        // TODO set real parameters for calling add_liquidity on ref finance after deploying on testnet
-
-        let lpt_id: String = ref_finance::ext(self.ref_finance_account.clone())
-            .with_static_gas(GAS_FOR_ADD_LIQUIDITY)
+        ref_finance::ext(self.ref_finance_account.clone())
             .with_attached_deposit(NO_DEPOSIT)
             .add_liquidity(
-                U128(self.pool_id as u128),
+                "usdt.qa.v1.nearlend.testnet|wnear.qa.v1.nearlend.testnet|2000".to_string(),
                 left_point,
                 right_point,
                 amount_x,
                 amount_y,
                 min_amount_x,
                 min_amount_y,
-            ).unwrap_json();
+            )
+            .then(
+                ext_self::ext(current_account_id())
+                    .with_static_gas(Gas(100))
+                    .with_attached_deposit(NO_DEPOSIT)
+                    .add_liquidity_callback(user, order),
+            )
+            .into()
+    }
 
-        // let lpt_id: String = match env::promise_result(1) {
-        //     PromiseResult::NotReady => "".parse().unwrap(),
-        //     PromiseResult::Failed => "".parse().unwrap(),
-        //     PromiseResult::Successful(result) => {
-        //         serde_json::from_slice::<String>(&result).unwrap().into()
-        //     }
-        // };
+    pub fn add_liquidity_callback(
+        &mut self,
+        user: AccountId,
+        mut order: Order,
+    ) -> PromiseOrValue<WBalance> {
+        require!(is_promise_success(), "Problems with adding liquidity");
+
+        let lpt_id: String = match env::promise_result(0) {
+            PromiseResult::NotReady => "".parse().unwrap(),
+            PromiseResult::Failed => "".parse().unwrap(),
+            PromiseResult::Successful(result) => {
+                serde_json::from_slice::<String>(&result).unwrap().into()
+            }
+        };
 
         order.set_lpt_id(lpt_id);
 
@@ -125,26 +151,8 @@ impl Contract {
         let order_id = self.order_nonce;
         self.insert_order_for_user(&user, order, order_id);
 
-        PromiseOrValue::Value(0.into())
+        PromiseOrValue::Value(U128(0))
     }
-
-    // #[private]
-    // pub fn swap_callback(
-    //     &mut self,
-    //     user: AccountId,
-    //     amount: WBalance,
-    //     order: Order,
-    // ) -> PromiseOrValue<Balance> {
-    //     let amount_out: Balance = match env::promise_result(0) {
-    //         PromiseResult::NotReady => 0,
-    //         PromiseResult::Failed => 0,
-    //         PromiseResult::Successful(result) => {
-    //             serde_json::from_slice::<WBalance>(&result).unwrap().into()
-    //         }
-    //     };
-    //
-    //     //
-    // }
 
     #[private]
     pub fn add_order(&mut self, account_id: AccountId, order: String) {

@@ -29,6 +29,7 @@ impl Contract {
             buy_token: order.buy_token,
             buy_token_price: WBalance::from(order.buy_token_price.value),
             fee: U128(3 * 10u128.pow(23)), // hardcore of 0.3 %
+            lpt_id: order.lpt_id,
         }
     }
 
@@ -101,6 +102,7 @@ impl Contract {
                         buy_token: order.buy_token.clone(),
                         buy_token_price: WRatio::from(order.buy_token_price.value),
                         fee: U128(self.protocol_fee),
+                        lpt_id: order.lpt_id.clone()
                     }),
                     false => None,
                 }
@@ -261,6 +263,7 @@ mod tests {
                 buy_token: order1_un.buy_token,
                 buy_token_price: WRatio::from(order1_un.buy_token_price.value),
                 fee: U128(contract.protocol_fee),
+                lpt_id: "1".to_string()
             },
             OrderView {
                 order_id: U128(2),
@@ -271,6 +274,7 @@ mod tests {
                 buy_token: order2_un.buy_token,
                 buy_token_price: WRatio::from(order2_un.buy_token_price.value),
                 fee: U128(contract.protocol_fee),
+                lpt_id: "2".to_string()
             },
         ];
         assert_eq!(expect_result, orders);

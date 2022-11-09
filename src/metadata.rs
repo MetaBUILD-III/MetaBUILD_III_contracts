@@ -100,6 +100,7 @@ pub struct OrderView {
     pub buy_token: AccountId,
     pub buy_token_price: WBalance,
     pub fee: WBalance,
+    pub lpt_id: String
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Debug, Clone, PartialEq)]

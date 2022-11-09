@@ -8,7 +8,7 @@ pub type LptId = String;
 trait RefFinanceInterface {
     fn add_liquidity(
         &mut self,
-        pool_id: U128,
+        pool_id: String,
         left_point: i32,
         right_point: i32,
         amount_x: U128,

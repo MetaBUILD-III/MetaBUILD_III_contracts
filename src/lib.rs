@@ -66,6 +66,9 @@ pub struct Contract {
 
     /// Liquidation threshold
     liquidation_threshold: u128,
+
+    /// Volatility rate
+    volatility_rate: BigDecimal,
 }
 
 impl Default for Contract {
@@ -104,6 +107,7 @@ impl Contract {
             protocol_profit: LookupMap::new(StorageKeys::ProtocolProfit),
             ref_finance_account: "dcl.ref-dev.testnet".parse().unwrap(),
             liquidation_threshold: 10_u128.pow(23),
+            volatility_rate: BigDecimal::from(U128(95 * 10_u128.pow(22))),
         }
     }
 
@@ -130,5 +134,10 @@ impl Contract {
     #[private]
     pub fn set_liquidation_threshold(&mut self, threshold: U128) {
         self.liquidation_threshold = threshold.0;
+    }
+
+    #[private]
+    pub fn set_volatility_rate(&mut self, rate: U128) {
+        self.volatility_rate = BigDecimal::from(rate)
     }
 }

@@ -185,23 +185,19 @@ impl Contract {
         leverage: U128,
         borrow_fee: U128,
         swap_fee: U128,
-    ) -> Price {
-        let volatility_rate = BigDecimal::from(U128(95 * 10_u128.pow(22)));
+    ) -> WBigDecimal {
         let collateral_usd =
             BigDecimal::from(sell_token_amount) * BigDecimal::from(sell_token_price);
         let position_amount_usd = collateral_usd * BigDecimal::from(leverage.0);
         let borrow_amount = collateral_usd * (BigDecimal::from(leverage.0) - BigDecimal::from(1));
         let buy_amount = position_amount_usd / BigDecimal::from(buy_token_price);
 
-        let liquidation_price = (position_amount_usd - volatility_rate * collateral_usd
+        let liquidation_price = (position_amount_usd - self.volatility_rate * collateral_usd
             + borrow_amount * BigDecimal::from(borrow_fee)
             + position_amount_usd * BigDecimal::from(swap_fee))
             / buy_amount;
 
-        Price {
-            ticker_id: "usd".to_string(),
-            value: liquidation_price,
-        }
+        liquidation_price.into()
     }
 }
 
@@ -340,4 +336,42 @@ mod tests {
         assert!(pnl.is_profit);
         assert_eq!(pnl.amount, U128(256558246105184350685977637895071072256));
     }
+
+    #[test]
+    fn test_calculate_liquidation_price_sell_usdt() {
+        let contract = Contract::new_with_config(
+            "owner_id.testnet".parse().unwrap(),
+            "oracle_account_id.testnet".parse().unwrap(),
+        );
+    
+        let result = contract.calculate_liquidation_price(
+            U128(10_u128.pow(27)),
+            U128(10_u128.pow(24)),
+            U128(10_u128.pow(25)),
+            U128(3),
+            U128(5 * 10_u128.pow(22)),
+            U128(3 * 10_u128.pow(20)),
+        );
+    
+        assert_eq!(result, U128(7169666666666666666666666));
+    }
+    
+    #[test]
+    fn test_calculate_liquidation_price_sell_wnear() {
+        let contract = Contract::new_with_config(
+            "owner_id.testnet".parse().unwrap(),
+            "oracle_account_id.testnet".parse().unwrap(),
+        );
+    
+        let result = contract.calculate_liquidation_price(
+            U128(10_u128.pow(27)),
+            U128(10_u128.pow(25)),
+            U128(10_u128.pow(24)),
+            U128(2),
+            U128(5 * 10_u128.pow(22)),
+            U128(3 * 10_u128.pow(20)),
+        );
+    
+        assert_eq!(result, U128(5503 * 10_u128.pow(20)));
+    }  
 }

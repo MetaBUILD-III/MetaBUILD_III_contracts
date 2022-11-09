@@ -52,7 +52,7 @@ pub enum TokenReceiverMessage {
 #[serde(crate = "near_sdk::serde")]
 pub struct SwapAction {
     /// Pool which should be used for swapping.
-    pub pool_id: u64,
+    pub pool_id: String,
     /// Token to swap from.
     pub token_in: AccountId,
     /// Amount to exchange.

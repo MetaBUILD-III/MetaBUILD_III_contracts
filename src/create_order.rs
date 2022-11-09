@@ -17,6 +17,7 @@ trait ContractCallbackInterface {
         &mut self,
         user: AccountId,
         amount: WBalance,
+        amount_to_proceed: WBalance,
         order: Order,
     ) -> PromiseOrValue<Balance>;
 
@@ -55,10 +56,6 @@ impl Contract {
         } else {
             amount
         };
-        let amount_on_other_token = U128::from(
-            BigDecimal::from(U128::from(amount_to_proceed))
-                * self.calculate_xrate(buy_token.clone(), sell_token.clone()),
-        );
 
         let mut order = Order {
             status: OrderStatus::Pending,
@@ -86,7 +83,7 @@ impl Contract {
                 ext_self::ext(current_account_id())
                     .with_static_gas(Gas(200))
                     .with_attached_deposit(NO_DEPOSIT)
-                    .deposit_callback(user, amount_to_proceed, order),
+                    .deposit_callback(user, amount, amount_to_proceed, order),
             )
             .into()
     }
@@ -96,6 +93,7 @@ impl Contract {
         &mut self,
         user: AccountId,
         amount: WBalance,
+        amount_to_proceed: WBalance,
         mut order: Order,
     ) -> PromiseOrValue<WBalance> {
         require!(is_promise_success(), "Some problem with deposit");
@@ -105,7 +103,7 @@ impl Contract {
         let left_point = -11400;
         let right_point = -11360;
 
-        let amount_x: WBalance = amount;
+        let amount_x: WBalance = amount_to_proceed;
         let amount_y = U128::from(0);
         let min_amount_x = U128::from(0);
         let min_amount_y = U128::from(0);
@@ -113,7 +111,7 @@ impl Contract {
         ref_finance::ext(self.ref_finance_account.clone())
             .with_attached_deposit(NO_DEPOSIT)
             .add_liquidity(
-                "usdt.qa.v1.nearlend.testnet|wnear.qa.v1.nearlend.testnet|2000".to_string(),
+                self.pool_id.clone(),
                 left_point,
                 right_point,
                 amount_x,

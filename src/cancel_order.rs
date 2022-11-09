@@ -113,7 +113,7 @@ impl Contract {
                 / order.buy_token_price.value;
         let min_amount = buy_amount * self.get_price(order.buy_token.clone());
         let actions: Vec<Action> = vec![Action::Swap(SwapAction {
-            pool_id: self.pool_id,
+            pool_id: self.pool_id.clone(),
             token_in: order.buy_token.clone(),
             amount_in: Some(WRatio::from(buy_amount)),
             token_out: order.sell_token.clone(),

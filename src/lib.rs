@@ -53,7 +53,10 @@ pub struct Contract {
     config: Config,
 
     /// Pool id in Ref Finance
-    pool_id: u64,
+    /// "usdt.qa.v1.nearlend.testnet|wnear.qa.v1.nearlend.testnet|2000"
+    /// OR
+    /// "wnear.qa.v1.nearlend.testnet|usdt.qa.v1.nearlend.testnet|2000"
+    pool_id: String,
 
     /// token id -> market id
     tokens_markets: LookupMap<AccountId, AccountId>,
@@ -99,7 +102,7 @@ impl Contract {
             supported_markets: UnorderedMap::new(StorageKeys::SupportedMarkets),
             config,
             balances: UnorderedMap::new(StorageKeys::Balances),
-            pool_id: 0,
+            pool_id: "".to_string(),
             tokens_markets: LookupMap::new(StorageKeys::TokenMarkets),
             protocol_profit: LookupMap::new(StorageKeys::ProtocolProfit),
             ref_finance_account: "dcl.ref-dev.testnet".parse().unwrap(),
@@ -123,8 +126,8 @@ impl Contract {
     }
 
     #[private]
-    pub fn set_pool_id(&mut self, pool_id: U128) {
-        self.pool_id = pool_id.0 as u64;
+    pub fn set_pool_id(&mut self, pool_id: String) {
+        self.pool_id = pool_id;
     }
 
     #[private]

@@ -38,7 +38,7 @@ trait ContractCallbackInterface {
 
 #[near_bindgen]
 impl Contract {
-    fn cancel_order(&mut self, order_id: U128, swap_fee: U128, price_impact: U128) {
+    pub fn cancel_order(&mut self, order_id: U128, swap_fee: U128, price_impact: U128) {
         let orders = self.orders.get(&signer_account_id()).unwrap_or_else(|| {
             panic!("Orders for account: {} not found", signer_account_id());
         });

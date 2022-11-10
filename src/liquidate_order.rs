@@ -10,7 +10,7 @@ use near_sdk::{ext_contract, is_promise_success, Gas, PromiseResult};
 
 #[near_bindgen]
 impl Contract {
-    fn liquidate_order(&mut self, order_id: U128, swap_fee: U128, price_impact: U128) {
+    pub fn liquidate_order(&mut self, order_id: U128, swap_fee: U128, price_impact: U128) {
         let account_op = self.get_account_by(order_id.0);
         require!(
             account_op.is_some(),

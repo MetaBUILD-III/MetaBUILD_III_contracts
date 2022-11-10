@@ -27,6 +27,7 @@ impl Contract {
             amount: U128(order.amount),
             sell_token: order.sell_token,
             buy_token: order.buy_token,
+            leverage: WBigDecimal::from(order.leverage),
             buy_token_price: WBalance::from(order.buy_token_price.value),
             fee: U128(3 * 10u128.pow(23)), // hardcore of 0.3 %
         }
@@ -99,6 +100,7 @@ impl Contract {
                         amount: U128(order.amount.clone()),
                         sell_token: order.sell_token.clone(),
                         buy_token: order.buy_token.clone(),
+                        leverage: WBigDecimal::from(order.leverage),
                         buy_token_price: WRatio::from(order.buy_token_price.value),
                         fee: U128(self.protocol_fee),
                     }),
@@ -282,6 +284,7 @@ mod tests {
                 amount: U128(order1_un.amount),
                 sell_token: order1_un.sell_token,
                 buy_token: order1_un.buy_token,
+                leverage: WBigDecimal::from(order1_un.leverage),
                 buy_token_price: WRatio::from(order1_un.buy_token_price.value),
                 fee: U128(contract.protocol_fee),
             },
@@ -292,6 +295,7 @@ mod tests {
                 amount: U128(order2_un.amount),
                 sell_token: order2_un.sell_token,
                 buy_token: order2_un.buy_token,
+                leverage: WBigDecimal::from(order2_un.leverage),
                 buy_token_price: WRatio::from(order2_un.buy_token_price.value),
                 fee: U128(contract.protocol_fee),
             },

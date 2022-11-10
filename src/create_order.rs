@@ -5,6 +5,7 @@ use crate::utils::NO_DEPOSIT;
 use crate::utils::{ext_market, ext_token};
 use crate::*;
 use near_sdk::env::current_account_id;
+use near_sdk::serde::__private::de::Content::I64;
 use near_sdk::{ext_contract, is_promise_success, log, serde_json, Gas, PromiseResult};
 use std::task::Wake;
 
@@ -24,11 +25,17 @@ trait ContractCallbackInterface {
     fn get_pool_info_callback(
         &mut self,
         user: AccountId,
+        amount: WBalance,
         amount_to_proceed: WBalance,
         order: Order,
     ) -> PromiseOrValue<WBalance>;
 
-    fn add_liquidity_callback(&mut self, user: AccountId, order: Order) -> PromiseOrValue<Balance>;
+    fn add_liquidity_callback(
+        &mut self,
+        user: AccountId,
+        amount: WBalance,
+        order: Order,
+    ) -> PromiseOrValue<Balance>;
 }
 
 #[near_bindgen]
@@ -105,8 +112,6 @@ impl Contract {
     ) -> PromiseOrValue<WBalance> {
         require!(is_promise_success(), "Some problem with deposit");
 
-        self.decrease_balance(user.clone(), order.sell_token.clone(), amount.0);
-
         ref_finance::ext(self.ref_finance_account.clone())
             .with_static_gas(Gas(10))
             .with_attached_deposit(NO_DEPOSIT)
@@ -115,7 +120,7 @@ impl Contract {
                 ext_self::ext(current_account_id())
                     .with_static_gas(Gas(100))
                     .with_attached_deposit(NO_DEPOSIT)
-                    .get_pool_info_callback(user, amount_to_proceed, order),
+                    .get_pool_info_callback(user, amount, amount_to_proceed, order),
             )
             .into()
     }
@@ -124,6 +129,7 @@ impl Contract {
     pub fn get_pool_info_callback(
         &mut self,
         user: AccountId,
+        amount: WBalance,
         amount_to_proceed: WBalance,
         mut order: Order,
     ) -> PromiseOrValue<WBalance> {
@@ -148,8 +154,8 @@ impl Contract {
             "Some problem with pool, please contact with ref finance to support."
         );
 
-        let left_point = pool_info.current_point.clone() as i32 + pool_info.point_delta as i32;
-        let right_point = pool_info.current_point as i32;
+        let left_point = -11360;
+        let right_point = -11240;
 
         let amount_x: WBalance = amount_to_proceed;
         let amount_y = U128::from(0);
@@ -171,7 +177,7 @@ impl Contract {
                 ext_self::ext(current_account_id())
                     .with_static_gas(Gas(100))
                     .with_attached_deposit(NO_DEPOSIT)
-                    .add_liquidity_callback(user, order),
+                    .add_liquidity_callback(user, amount, order),
             )
             .into()
     }
@@ -180,6 +186,7 @@ impl Contract {
     pub fn add_liquidity_callback(
         &mut self,
         user: AccountId,
+        amount: WBalance,
         mut order: Order,
     ) -> PromiseOrValue<WBalance> {
         require!(is_promise_success(), "Problems with adding liquidity");
@@ -196,6 +203,8 @@ impl Contract {
 
         self.order_nonce += 1;
         let order_id = self.order_nonce;
+        self.decrease_balance(user.clone(), order.sell_token.clone(), amount.0);
+
         self.insert_order_for_user(&user, order, order_id);
 
         PromiseOrValue::Value(U128(0))

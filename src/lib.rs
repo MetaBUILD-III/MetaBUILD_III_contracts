@@ -116,12 +116,12 @@ impl Contract {
     }
 
     #[private]
-    fn set_protocol_fee(&mut self, fee: U128) {
+    pub fn set_protocol_fee(&mut self, fee: U128) {
         self.protocol_fee = fee.0
     }
 
     #[private]
-    fn add_token_market(&mut self, token_id: AccountId, market_id: AccountId) {
+    pub fn add_token_market(&mut self, token_id: AccountId, market_id: AccountId) {
         self.tokens_markets.insert(&token_id, &market_id);
     }
 

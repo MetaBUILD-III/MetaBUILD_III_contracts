@@ -25,13 +25,7 @@ trait RefFinanceInterface {
         min_amount_y: U128,
     ) -> (U128, U128);
 
-    fn get_return(
-        &self,
-        pool_id: u64,
-        token_in: AccountId,
-        amount_in: Option<U128>,
-        token_out: AccountId,
-    ) -> Balance;
+    fn get_pool(&self, pool_id: LptId);
 }
 
 /// Message parameters to receive via token function call.

@@ -21,6 +21,13 @@ trait ContractCallbackInterface {
         order: Order,
     ) -> PromiseOrValue<Balance>;
 
+    fn get_pool_info_callback(
+        &mut self,
+        user: AccountId,
+        amount_to_proceed: WBalance,
+        order: Order,
+    ) -> PromiseOrValue<WBalance>;
+
     fn add_liquidity_callback(&mut self, user: AccountId, order: Order) -> PromiseOrValue<Balance>;
 }
 
@@ -100,8 +107,49 @@ impl Contract {
 
         self.decrease_balance(user.clone(), order.sell_token.clone(), amount.0);
 
-        let left_point = -11400;
-        let right_point = -11360;
+        ref_finance::ext(self.ref_finance_account.clone())
+            .with_static_gas(Gas(10))
+            .with_attached_deposit(NO_DEPOSIT)
+            .get_pool(self.pool_id.clone())
+            .then(
+                ext_self::ext(current_account_id())
+                    .with_static_gas(Gas(100))
+                    .with_attached_deposit(NO_DEPOSIT)
+                    .get_pool_info_callback(user, amount_to_proceed, order),
+            )
+            .into()
+    }
+
+    #[private]
+    pub fn get_pool_info_callback(
+        &mut self,
+        user: AccountId,
+        amount_to_proceed: WBalance,
+        mut order: Order,
+    ) -> PromiseOrValue<WBalance> {
+        require!(
+            is_promise_success(),
+            "Some problem with pool on ref finance"
+        );
+        let pool_info = match env::promise_result(0) {
+            PromiseResult::NotReady => unreachable!(),
+            PromiseResult::Successful(val) => {
+                if let Ok(pool) = near_sdk::serde_json::from_slice::<PoolInfo>(&val) {
+                    pool
+                } else {
+                    panic!("Some problem with pool parsing.")
+                }
+            }
+            PromiseResult::Failed => panic!("Ref finance not found pool"),
+        };
+
+        require!(
+            pool_info.state == PoolState::Running,
+            "Some problem with pool, please contact with ref finance to support."
+        );
+
+        let left_point = pool_info.current_point.clone() as i32 + pool_info.point_delta as i32;
+        let right_point = pool_info.current_point as i32;
 
         let amount_x: WBalance = amount_to_proceed;
         let amount_y = U128::from(0);
@@ -128,6 +176,7 @@ impl Contract {
             .into()
     }
 
+    #[private]
     pub fn add_liquidity_callback(
         &mut self,
         user: AccountId,

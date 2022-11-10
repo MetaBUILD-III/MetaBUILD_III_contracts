@@ -98,6 +98,7 @@ pub struct OrderView {
     pub amount: U128,
     pub sell_token: AccountId,
     pub buy_token: AccountId,
+    pub leverage: WBigDecimal,
     pub buy_token_price: WBalance,
     pub fee: WBalance,
 }

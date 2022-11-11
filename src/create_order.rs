@@ -118,7 +118,7 @@ impl Contract {
             .get_pool(self.pool_id.clone())
             .then(
                 ext_self::ext(current_account_id())
-                    .with_static_gas(Gas(100))
+                    .with_static_gas(Gas(20))
                     .with_attached_deposit(NO_DEPOSIT)
                     .get_pool_info_callback(user, amount, amount_to_proceed, order),
             )
@@ -154,8 +154,13 @@ impl Contract {
             "Some problem with pool, please contact with ref finance to support."
         );
 
-        let left_point = -11360;
-        let right_point = -11240;
+        let mut left_point = pool_info.current_point as i32;
+
+        while left_point % pool_info.point_delta as i32 != 0 {
+            left_point += 1;
+        }
+
+        let right_point = left_point + pool_info.point_delta as i32;
 
         let amount_x: WBalance = amount_to_proceed;
         let amount_y = U128::from(0);
@@ -163,6 +168,7 @@ impl Contract {
         let min_amount_y = U128::from(0);
 
         ref_finance::ext(self.ref_finance_account.clone())
+            .with_static_gas(GAS_FOR_ADD_LIQUIDITY)
             .with_attached_deposit(NO_DEPOSIT)
             .add_liquidity(
                 self.pool_id.clone(),
@@ -175,7 +181,7 @@ impl Contract {
             )
             .then(
                 ext_self::ext(current_account_id())
-                    .with_static_gas(Gas(100))
+                    .with_static_gas(Gas(20))
                     .with_attached_deposit(NO_DEPOSIT)
                     .add_liquidity_callback(user, amount, order),
             )

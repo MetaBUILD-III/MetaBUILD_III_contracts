@@ -85,7 +85,7 @@ impl Contract {
         };
 
         ext_token::ext(sell_token.clone())
-            .with_static_gas(Gas(200))
+            .with_static_gas(Gas(20))
             .with_attached_deposit(1)
             .ft_transfer_call(
                 self.ref_finance_account.clone(),
@@ -95,7 +95,7 @@ impl Contract {
             )
             .then(
                 ext_self::ext(current_account_id())
-                    .with_static_gas(Gas(200))
+                    .with_static_gas(Gas(5))
                     .with_attached_deposit(NO_DEPOSIT)
                     .deposit_callback(user, amount, amount_to_proceed, order),
             )
@@ -113,12 +113,10 @@ impl Contract {
         require!(is_promise_success(), "Some problem with deposit");
 
         ref_finance::ext(self.ref_finance_account.clone())
-            .with_static_gas(Gas(10))
             .with_attached_deposit(NO_DEPOSIT)
             .get_pool(self.pool_id.clone())
             .then(
                 ext_self::ext(current_account_id())
-                    .with_static_gas(Gas(20))
                     .with_attached_deposit(NO_DEPOSIT)
                     .get_pool_info_callback(user, amount, amount_to_proceed, order),
             )

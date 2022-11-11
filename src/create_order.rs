@@ -9,8 +9,7 @@ use near_sdk::serde::__private::de::Content::I64;
 use near_sdk::{ext_contract, is_promise_success, log, serde_json, Gas, PromiseResult};
 use std::task::Wake;
 
-const GAS_FOR_BORROW: Gas = Gas(180_000_000_000_000);
-const GAS_FOR_ADD_LIQUIDITY: Gas = Gas(20_000_000_000_000);
+const GAS_FOR_BORROW: Gas = Gas(170_000_000_000_000);
 
 #[ext_contract(ext_self)]
 trait ContractCallbackInterface {
@@ -118,7 +117,7 @@ impl Contract {
             .get_pool(self.pool_id.clone())
             .then(
                 ext_self::ext(current_account_id())
-                    .with_static_gas(Gas(20))
+                    .with_static_gas(Gas(10))
                     .with_attached_deposit(NO_DEPOSIT)
                     .get_pool_info_callback(user, amount, amount_to_proceed, order),
             )
@@ -168,7 +167,7 @@ impl Contract {
         let min_amount_y = U128::from(0);
 
         ref_finance::ext(self.ref_finance_account.clone())
-            .with_static_gas(GAS_FOR_ADD_LIQUIDITY)
+            .with_static_gas(Gas(70))
             .with_attached_deposit(NO_DEPOSIT)
             .add_liquidity(
                 self.pool_id.clone(),

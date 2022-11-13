@@ -9,17 +9,11 @@ use near_sdk::serde::__private::de::Content::I64;
 use near_sdk::{ext_contract, is_promise_success, log, serde_json, Gas, PromiseResult};
 use std::task::Wake;
 
-const GAS_FOR_BORROW: Gas = Gas(170_000_000_000_000);
+const GAS_FOR_BORROW: Gas = Gas(180_000_000_000_000);
 
 #[ext_contract(ext_self)]
 trait ContractCallbackInterface {
-    fn deposit_callback(
-        &mut self,
-        user: AccountId,
-        amount: WBalance,
-        amount_to_proceed: WBalance,
-        order: Order,
-    ) -> PromiseOrValue<Balance>;
+    fn borrow_buy_token_callback(&self, amount: WBalance);
 
     fn get_pool_info_callback(
         &mut self,
@@ -83,34 +77,6 @@ impl Contract {
             lpt_id: "".to_string(),
         };
 
-        ext_token::ext(sell_token.clone())
-            .with_static_gas(Gas(20))
-            .with_attached_deposit(1)
-            .ft_transfer_call(
-                self.ref_finance_account.clone(),
-                amount_to_proceed,
-                Some("Deposit tokens".to_string()),
-                serde_json::to_string(&"Deposit").unwrap(),
-            )
-            .then(
-                ext_self::ext(current_account_id())
-                    .with_static_gas(Gas(5))
-                    .with_attached_deposit(NO_DEPOSIT)
-                    .deposit_callback(user, amount, amount_to_proceed, order),
-            )
-            .into()
-    }
-
-    #[private]
-    pub fn deposit_callback(
-        &mut self,
-        user: AccountId,
-        amount: WBalance,
-        amount_to_proceed: WBalance,
-        mut order: Order,
-    ) -> PromiseOrValue<WBalance> {
-        require!(is_promise_success(), "Some problem with deposit");
-
         ref_finance::ext(self.ref_finance_account.clone())
             .with_static_gas(Gas(10))
             .with_attached_deposit(NO_DEPOSIT)
@@ -167,7 +133,7 @@ impl Contract {
         let min_amount_y = U128::from(0);
 
         ref_finance::ext(self.ref_finance_account.clone())
-            .with_static_gas(Gas(70))
+            .with_static_gas(Gas(28))
             .with_attached_deposit(NO_DEPOSIT)
             .add_liquidity(
                 self.pool_id.clone(),
@@ -180,7 +146,7 @@ impl Contract {
             )
             .then(
                 ext_self::ext(current_account_id())
-                    .with_static_gas(Gas(20))
+                    .with_static_gas(Gas(3))
                     .with_attached_deposit(NO_DEPOSIT)
                     .add_liquidity_callback(user, amount, order),
             )
@@ -245,6 +211,19 @@ impl Contract {
         ext_market::ext(token_market)
             .with_static_gas(GAS_FOR_BORROW)
             .with_attached_deposit(NO_DEPOSIT)
-            .borrow(amount);
+            .borrow(amount)
+            .then(
+                ext_self::ext(current_account_id())
+                    .with_static_gas(Gas(3))
+                    .with_attached_deposit(NO_DEPOSIT)
+                    .borrow_buy_token_callback(amount),
+            );
+    }
+
+    #[private]
+    pub fn borrow_buy_token_callback(&self, amount: U128) {
+        if !is_promise_success() {
+            log!("{}", "Borrow has failed");
+        }
     }
 }

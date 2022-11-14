@@ -1,18 +1,29 @@
 use crate::big_decimal::{BigDecimal, WBalance};
-use crate::ref_finance::ref_finance::ext;
+use crate::ref_finance::ref_finance;
 use crate::ref_finance::{Action, SwapAction, TokenReceiverMessage};
 use crate::utils::NO_DEPOSIT;
 use crate::utils::{ext_market, ext_token};
 use crate::*;
 use near_sdk::env::current_account_id;
+use near_sdk::serde::__private::de::Content::I64;
 use near_sdk::{ext_contract, is_promise_success, log, serde_json, Gas, PromiseResult};
+use std::task::Wake;
 
 const GAS_FOR_BORROW: Gas = Gas(180_000_000_000_000);
-const GAS_FOR_ADD_LIQUIDITY: Gas = Gas(200_000_000_000_000);
 
 #[ext_contract(ext_self)]
 trait ContractCallbackInterface {
-    fn swap_callback(
+    fn borrow_buy_token_callback(&self, amount: WBalance);
+
+    fn get_pool_info_callback(
+        &mut self,
+        user: AccountId,
+        amount: WBalance,
+        amount_to_proceed: WBalance,
+        order: Order,
+    ) -> PromiseOrValue<WBalance>;
+
+    fn add_liquidity_callback(
         &mut self,
         user: AccountId,
         amount: WBalance,
@@ -53,26 +64,7 @@ impl Contract {
             amount
         };
 
-        let min_amount_out = U128::from(
-            BigDecimal::from(U128::from(amount_to_proceed))
-                * self.calculate_xrate(buy_token.clone(), sell_token.clone()),
-        );
-        log!("min_amount_out {}", min_amount_out.0);
-
-        let actions: Vec<Action> = vec![Action::Swap(SwapAction {
-            pool_id: self.pool_id,
-            token_in: buy_token.clone(),
-            amount_in: Some(amount_to_proceed),
-            token_out: sell_token.clone(),
-            min_amount_out,
-        })];
-
-        let action = TokenReceiverMessage::Execute {
-            force: true,
-            actions,
-        };
-
-        let order = Order {
+        let mut order = Order {
             status: OrderStatus::Pending,
             order_type,
             amount: Balance::from(amount_to_proceed),
@@ -85,65 +77,96 @@ impl Contract {
             lpt_id: "".to_string(),
         };
 
-        ext_token::ext(sell_token.clone())
-            .with_static_gas(Gas(3))
-            .with_attached_deposit(1)
-            .ft_transfer_call(
-                self.ref_finance_account.clone(),
-                amount,
-                Some("Deposit tokens".to_string()),
-                near_sdk::serde_json::to_string(&action).unwrap(),
-            )
+        ref_finance::ext(self.ref_finance_account.clone())
+            .with_static_gas(Gas(10))
+            .with_attached_deposit(NO_DEPOSIT)
+            .get_pool(self.pool_id.clone())
             .then(
                 ext_self::ext(current_account_id())
-                    .with_static_gas(Gas(20))
+                    .with_static_gas(Gas(10))
                     .with_attached_deposit(NO_DEPOSIT)
-                    .swap_callback(user, amount, order),
+                    .get_pool_info_callback(user, amount, amount_to_proceed, order),
             )
             .into()
     }
 
     #[private]
-    pub fn swap_callback(
+    pub fn get_pool_info_callback(
         &mut self,
         user: AccountId,
         amount: WBalance,
+        amount_to_proceed: WBalance,
         mut order: Order,
     ) -> PromiseOrValue<WBalance> {
-        require!(is_promise_success(), "Token swap hasn't end successfully");
+        require!(
+            is_promise_success(),
+            "Some problem with pool on ref finance"
+        );
+        let pool_info = match env::promise_result(0) {
+            PromiseResult::NotReady => unreachable!(),
+            PromiseResult::Successful(val) => {
+                if let Ok(pool) = near_sdk::serde_json::from_slice::<PoolInfo>(&val) {
+                    pool
+                } else {
+                    panic!("Some problem with pool parsing.")
+                }
+            }
+            PromiseResult::Failed => panic!("Ref finance not found pool"),
+        };
 
-        self.decrease_balance(user.clone(), order.sell_token.clone(), amount.0);
+        require!(
+            pool_info.state == PoolState::Running,
+            "Some problem with pool, please contact with ref finance to support."
+        );
 
-        let left_point = 1;
-        let right_point = 2;
+        let mut left_point = pool_info.current_point as i32;
 
-        let amount_x = amount;
-        let amount_y: WBalance = U128::from(0);
-        let min_amount_x: U128 = amount;
-        let min_amount_y: U128 = U128::from(0);
+        while left_point % pool_info.point_delta as i32 != 0 {
+            left_point += 1;
+        }
 
-        // TODO set real parameters for calling add_liquidity on ref finance after deploying on testnet
+        let right_point = left_point + pool_info.point_delta as i32;
 
-        ext(self.ref_finance_account.clone())
-            .with_static_gas(GAS_FOR_ADD_LIQUIDITY)
+        let amount_x: WBalance = amount_to_proceed;
+        let amount_y = U128::from(0);
+        let min_amount_x = U128::from(0);
+        let min_amount_y = U128::from(0);
+
+        ref_finance::ext(self.ref_finance_account.clone())
+            .with_static_gas(Gas(28))
             .with_attached_deposit(NO_DEPOSIT)
             .add_liquidity(
-                U128(self.pool_id as u128),
+                self.pool_id.clone(),
                 left_point,
                 right_point,
                 amount_x,
                 amount_y,
                 min_amount_x,
                 min_amount_y,
-            );
+            )
+            .then(
+                ext_self::ext(current_account_id())
+                    .with_static_gas(Gas(3))
+                    .with_attached_deposit(NO_DEPOSIT)
+                    .add_liquidity_callback(user, amount, order),
+            )
+            .into()
+    }
+
+    #[private]
+    pub fn add_liquidity_callback(
+        &mut self,
+        user: AccountId,
+        amount: WBalance,
+        mut order: Order,
+    ) -> PromiseOrValue<WBalance> {
+        require!(is_promise_success(), "Problems with adding liquidity");
 
         let lpt_id: String = match env::promise_result(0) {
             PromiseResult::NotReady => "".parse().unwrap(),
             PromiseResult::Failed => "".parse().unwrap(),
             PromiseResult::Successful(result) => {
-                near_sdk::serde_json::from_slice::<String>(&result)
-                    .unwrap()
-                    .into()
+                serde_json::from_slice::<String>(&result).unwrap().into()
             }
         };
 
@@ -151,9 +174,11 @@ impl Contract {
 
         self.order_nonce += 1;
         let order_id = self.order_nonce;
+        self.decrease_balance(user.clone(), order.sell_token.clone(), amount.0);
+
         self.insert_order_for_user(&user, order, order_id);
 
-        PromiseOrValue::Value(0.into())
+        PromiseOrValue::Value(U128(0))
     }
 
     #[private]
@@ -186,6 +211,19 @@ impl Contract {
         ext_market::ext(token_market)
             .with_static_gas(GAS_FOR_BORROW)
             .with_attached_deposit(NO_DEPOSIT)
-            .borrow(amount);
+            .borrow(amount)
+            .then(
+                ext_self::ext(current_account_id())
+                    .with_static_gas(Gas(3))
+                    .with_attached_deposit(NO_DEPOSIT)
+                    .borrow_buy_token_callback(amount),
+            );
+    }
+
+    #[private]
+    pub fn borrow_buy_token_callback(&self, amount: U128) {
+        if !is_promise_success() {
+            log!("{}", "Borrow has failed");
+        }
     }
 }

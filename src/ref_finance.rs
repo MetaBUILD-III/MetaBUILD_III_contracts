@@ -8,7 +8,7 @@ pub type LptId = String;
 trait RefFinanceInterface {
     fn add_liquidity(
         &mut self,
-        pool_id: U128,
+        pool_id: String,
         left_point: i32,
         right_point: i32,
         amount_x: U128,
@@ -24,6 +24,8 @@ trait RefFinanceInterface {
         min_amount_x: U128,
         min_amount_y: U128,
     ) -> (U128, U128);
+
+    fn get_pool(&self, pool_id: LptId);
 }
 
 /// Message parameters to receive via token function call.
@@ -44,7 +46,7 @@ pub enum TokenReceiverMessage {
 #[serde(crate = "near_sdk::serde")]
 pub struct SwapAction {
     /// Pool which should be used for swapping.
-    pub pool_id: u64,
+    pub pool_id: String,
     /// Token to swap from.
     pub token_in: AccountId,
     /// Amount to exchange.

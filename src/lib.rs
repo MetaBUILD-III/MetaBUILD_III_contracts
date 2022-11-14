@@ -53,7 +53,10 @@ pub struct Contract {
     config: Config,
 
     /// Pool id in Ref Finance
-    pool_id: u64,
+    /// "usdt.qa.v1.nearlend.testnet|wnear.qa.v1.nearlend.testnet|2000"
+    /// OR
+    /// "wnear.qa.v1.nearlend.testnet|usdt.qa.v1.nearlend.testnet|2000"
+    pool_id: String,
 
     /// token id -> market id
     tokens_markets: LookupMap<AccountId, AccountId>,
@@ -61,7 +64,7 @@ pub struct Contract {
     /// Protocol profit token_id -> amount
     protocol_profit: LookupMap<AccountId, BigDecimal>,
 
-    /// Ref finance accountId [ as default "ref-finance-101.testnet" ]
+    /// Ref finance accountId [ as default "dcl.ref-dev.testnet" ]
     ref_finance_account: AccountId,
 
     /// Liquidation threshold
@@ -102,10 +105,10 @@ impl Contract {
             supported_markets: UnorderedMap::new(StorageKeys::SupportedMarkets),
             config,
             balances: UnorderedMap::new(StorageKeys::Balances),
-            pool_id: 0,
+            pool_id: "".to_string(),
             tokens_markets: LookupMap::new(StorageKeys::TokenMarkets),
             protocol_profit: LookupMap::new(StorageKeys::ProtocolProfit),
-            ref_finance_account: "mock.ref_finance.testnet".parse().unwrap(),
+            ref_finance_account: "dcl.ref-dev.testnet".parse().unwrap(),
             liquidation_threshold: 10_u128.pow(23),
             volatility_rate: BigDecimal::from(U128(95 * 10_u128.pow(22))),
         }
@@ -117,18 +120,18 @@ impl Contract {
     }
 
     #[private]
-    fn set_protocol_fee(&mut self, fee: U128) {
+    pub fn set_protocol_fee(&mut self, fee: U128) {
         self.protocol_fee = fee.0
     }
 
     #[private]
-    fn add_token_market(&mut self, token_id: AccountId, market_id: AccountId) {
+    pub fn add_token_market(&mut self, token_id: AccountId, market_id: AccountId) {
         self.tokens_markets.insert(&token_id, &market_id);
     }
 
     #[private]
-    pub fn set_pool_id(&mut self, pool_id: U128) {
-        self.pool_id = pool_id.0 as u64;
+    pub fn set_pool_id(&mut self, pool_id: String) {
+        self.pool_id = pool_id;
     }
 
     #[private]

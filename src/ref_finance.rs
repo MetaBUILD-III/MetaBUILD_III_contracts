@@ -7,8 +7,8 @@ pub type LptId = String;
 #[ext_contract(ref_finance)]
 trait RefFinanceInterface {
     fn add_liquidity(
-        &self,
-        pool_id: U128,
+        &mut self,
+        pool_id: String,
         left_point: i32,
         right_point: i32,
         amount_x: U128,
@@ -25,7 +25,7 @@ trait RefFinanceInterface {
         min_amount_y: U128,
     ) -> (U128, U128);
 
-    fn get_pool(pool_id: LptId);
+    fn get_pool(&self, pool_id: LptId);
 }
 
 /// Message parameters to receive via token function call.

@@ -83,12 +83,6 @@ pub struct Order {
     pub lpt_id: String,
 }
 
-impl Order {
-    pub fn set_lpt_id(&mut self, lpt_id: String) {
-        self.lpt_id = lpt_id;
-    }
-}
-
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, PartialEq, Debug)]
 #[serde(crate = "near_sdk::serde")]
 pub struct OrderView {
@@ -98,8 +92,10 @@ pub struct OrderView {
     pub amount: U128,
     pub sell_token: AccountId,
     pub buy_token: AccountId,
+    pub leverage: WBigDecimal,
     pub buy_token_price: WBalance,
     pub fee: WBalance,
+    pub lpt_id: String,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -110,6 +106,7 @@ pub struct TradePair {
     pub sell_token_market: AccountId,
     pub buy_ticker_id: String,
     pub buy_token: AccountId,
+    pub pool_id: String,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]

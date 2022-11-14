@@ -4,9 +4,7 @@ use crate::utils::NO_DEPOSIT;
 use crate::utils::{ext_market, ext_token};
 use crate::*;
 use near_sdk::env::current_account_id;
-use near_sdk::serde::__private::de::Content::I64;
 use near_sdk::{ext_contract, is_promise_success, log, serde_json, Gas, PromiseResult};
-use std::task::Wake;
 
 const GAS_FOR_BORROW: Gas = Gas(180_000_000_000_000);
 
@@ -139,7 +137,7 @@ impl Contract {
                     .with_static_gas(Gas::ONE_TERA * 10u64)
                     .with_attached_deposit(NO_DEPOSIT)
                     .add_liquidity(
-                        self.pool_id.clone(),
+                        self.view_pair(&order.sell_token, &order.buy_token).pool_id,
                         left_point,
                         right_point,
                         amount_x,

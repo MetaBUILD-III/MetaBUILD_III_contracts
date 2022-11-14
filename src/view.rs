@@ -186,14 +186,14 @@ impl Contract {
         sell_token_amount: U128,
         sell_token_price: U128,
         buy_token_price: U128,
-        leverage: U128,
+        leverage: BigDecimal,
         borrow_fee: U128,
         swap_fee: U128,
     ) -> WBigDecimal {
         let collateral_usd =
             BigDecimal::from(sell_token_amount) * BigDecimal::from(sell_token_price);
-        let position_amount_usd = collateral_usd * BigDecimal::from(leverage.0);
-        let borrow_amount = collateral_usd * (BigDecimal::from(leverage.0) - BigDecimal::from(1));
+        let position_amount_usd = collateral_usd * leverage;
+        let borrow_amount = collateral_usd * (leverage - BigDecimal::from(1));
         let buy_amount = position_amount_usd / BigDecimal::from(buy_token_price);
 
         let liquidation_price = (position_amount_usd - self.volatility_rate * collateral_usd
@@ -212,6 +212,7 @@ mod tests {
     use near_sdk::test_utils::test_env::alice;
     use near_sdk::test_utils::VMContextBuilder;
     use near_sdk::{serde_json, testing_env, FunctionError, VMContext};
+    use std::str::FromStr;
 
     fn get_context(is_view: bool) -> VMContext {
         VMContextBuilder::new()
@@ -348,7 +349,7 @@ mod tests {
     }
 
     #[test]
-    fn test_calculate_liquidation_price_sell_usdt() {
+    fn test_calculate_liquidation_leverage_1_5() {
         let contract = Contract::new_with_config(
             "owner_id.testnet".parse().unwrap(),
             "oracle_account_id.testnet".parse().unwrap(),
@@ -358,30 +359,30 @@ mod tests {
             U128(10_u128.pow(27)),
             U128(10_u128.pow(24)),
             U128(10_u128.pow(25)),
-            U128(3),
+            BigDecimal::from_str("1.5").unwrap(),
+            U128(5 * 10_u128.pow(22)),
+            U128(3 * 10_u128.pow(20)),
+        );
+    
+        assert_eq!(result, U128(3836333333333333333333333));
+    }
+    
+    #[test]
+    fn test_calculate_liquidation_price_leverage_3() {
+        let contract = Contract::new_with_config(
+            "owner_id.testnet".parse().unwrap(),
+            "oracle_account_id.testnet".parse().unwrap(),
+        );
+    
+        let result = contract.calculate_liquidation_price(
+            U128(10_u128.pow(27)),
+            U128(10_u128.pow(24)),
+            U128(10_u128.pow(25)),
+            BigDecimal::from_str("3").unwrap(),
             U128(5 * 10_u128.pow(22)),
             U128(3 * 10_u128.pow(20)),
         );
     
         assert_eq!(result, U128(7169666666666666666666666));
-    }
-    
-    #[test]
-    fn test_calculate_liquidation_price_sell_wnear() {
-        let contract = Contract::new_with_config(
-            "owner_id.testnet".parse().unwrap(),
-            "oracle_account_id.testnet".parse().unwrap(),
-        );
-    
-        let result = contract.calculate_liquidation_price(
-            U128(10_u128.pow(27)),
-            U128(10_u128.pow(25)),
-            U128(10_u128.pow(24)),
-            U128(2),
-            U128(5 * 10_u128.pow(22)),
-            U128(3 * 10_u128.pow(20)),
-        );
-    
-        assert_eq!(result, U128(5503 * 10_u128.pow(20)));
     }  
 }

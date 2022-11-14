@@ -18,7 +18,7 @@ trait RefFinanceInterface {
     );
 
     fn remove_liquidity(
-        &mut self,
+        &self,
         lpt_id: LptId,
         amount: U128,
         min_amount_x: U128,

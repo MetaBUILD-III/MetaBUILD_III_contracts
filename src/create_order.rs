@@ -1,6 +1,5 @@
 use crate::big_decimal::{BigDecimal, WBalance};
 use crate::ref_finance::ref_finance;
-use crate::ref_finance::{Action, SwapAction, TokenReceiverMessage};
 use crate::utils::NO_DEPOSIT;
 use crate::utils::{ext_market, ext_token};
 use crate::*;
@@ -64,7 +63,7 @@ impl Contract {
             amount
         };
 
-        let mut order = Order {
+        let order = Order {
             status: OrderStatus::Pending,
             order_type,
             amount: Balance::from(amount_to_proceed),
@@ -77,17 +76,7 @@ impl Contract {
             lpt_id: "".to_string(),
         };
 
-        ref_finance::ext(self.ref_finance_account.clone())
-            .with_static_gas(Gas(10))
-            .with_attached_deposit(NO_DEPOSIT)
-            .get_pool(self.pool_id.clone())
-            .then(
-                ext_self::ext(current_account_id())
-                    .with_static_gas(Gas(10))
-                    .with_attached_deposit(NO_DEPOSIT)
-                    .get_pool_info_callback(user, amount, amount_to_proceed, order),
-            )
-            .into()
+        self.get_pool_info_callback(user, amount, amount_to_proceed, order)
     }
 
     #[private]
@@ -98,55 +87,70 @@ impl Contract {
         amount_to_proceed: WBalance,
         mut order: Order,
     ) -> PromiseOrValue<WBalance> {
-        require!(
-            is_promise_success(),
-            "Some problem with pool on ref finance"
-        );
-        let pool_info = match env::promise_result(0) {
-            PromiseResult::NotReady => unreachable!(),
-            PromiseResult::Successful(val) => {
-                if let Ok(pool) = near_sdk::serde_json::from_slice::<PoolInfo>(&val) {
-                    pool
-                } else {
-                    panic!("Some problem with pool parsing.")
-                }
-            }
-            PromiseResult::Failed => panic!("Ref finance not found pool"),
-        };
+        // require!(
+        //     is_promise_success(),
+        //     "Some problem with pool on ref finance"
+        // );
+        // let pool_info = match env::promise_result(0) {
+        //     PromiseResult::NotReady => unreachable!(),
+        //     PromiseResult::Successful(val) => {
+        //         if let Ok(pool) = near_sdk::serde_json::from_slice::<PoolInfo>(&val) {
+        //             pool
+        //         } else {
+        //             panic!("Some problem with pool parsing.")
+        //         }
+        //     }
+        //     PromiseResult::Failed => panic!("Ref finance not found pool"),
+        // };
 
-        require!(
-            pool_info.state == PoolState::Running,
-            "Some problem with pool, please contact with ref finance to support."
-        );
+        // require!(
+        //     pool_info.state == PoolState::Running,
+        //     "Some problem with pool, please contact with ref finance to support."
+        // );
 
-        let mut left_point = pool_info.current_point as i32;
+        // let mut left_point = pool_info.current_point as i32;
 
-        while left_point % pool_info.point_delta as i32 != 0 {
-            left_point += 1;
-        }
+        // while left_point % pool_info.point_delta as i32 != 0 {
+        //     left_point += 1;
+        // }
 
-        let right_point = left_point + pool_info.point_delta as i32;
+        // let right_point = left_point + pool_info.point_delta as i32;
+
+        // let point_delta = 40u64;
+        let left_point = -11320i32;
+        let right_point = -11280i32;
 
         let amount_x: WBalance = amount_to_proceed;
         let amount_y = U128::from(0);
         let min_amount_x = U128::from(0);
         let min_amount_y = U128::from(0);
 
-        ref_finance::ext(self.ref_finance_account.clone())
-            .with_static_gas(Gas(28))
-            .with_attached_deposit(NO_DEPOSIT)
-            .add_liquidity(
-                self.pool_id.clone(),
-                left_point,
-                right_point,
-                amount_x,
-                amount_y,
-                min_amount_x,
-                min_amount_y,
+        ext_token::ext(order.sell_token.clone())
+            .with_static_gas(Gas::ONE_TERA * 35u64)
+            .with_attached_deposit(near_sdk::ONE_YOCTO)
+            .ft_transfer_call(
+                self.ref_finance_account.clone(),
+                amount_to_proceed,
+                None,
+                "\"Deposit\"".to_string(),
+            )
+            .and(
+                ref_finance::ext(self.ref_finance_account.clone())
+                    .with_static_gas(Gas::ONE_TERA * 10u64)
+                    .with_attached_deposit(NO_DEPOSIT)
+                    .add_liquidity(
+                        self.pool_id.clone(),
+                        left_point,
+                        right_point,
+                        amount_x,
+                        amount_y,
+                        min_amount_x,
+                        min_amount_y,
+                    ),
             )
             .then(
                 ext_self::ext(current_account_id())
-                    .with_static_gas(Gas(3))
+                    .with_static_gas(Gas::ONE_TERA * 2u64)
                     .with_attached_deposit(NO_DEPOSIT)
                     .add_liquidity_callback(user, amount, order),
             )
@@ -160,22 +164,29 @@ impl Contract {
         amount: WBalance,
         mut order: Order,
     ) -> PromiseOrValue<WBalance> {
-        require!(is_promise_success(), "Problems with adding liquidity");
+        require!(
+            env::promise_results_count() == 2,
+            "Contract expected 2 results on the callback"
+        );
+        match env::promise_result(0) {
+            PromiseResult::NotReady => panic!("failed to deposit liquidity"),
+            PromiseResult::Failed => panic!("failed to deposit liquidity"),
+            _ => (),
+        };
 
-        let lpt_id: String = match env::promise_result(0) {
-            PromiseResult::NotReady => "".parse().unwrap(),
-            PromiseResult::Failed => "".parse().unwrap(),
+        self.decrease_balance(user.clone(), order.sell_token.clone(), amount.0);
+
+        let lpt_id: String = match env::promise_result(1) {
             PromiseResult::Successful(result) => {
                 serde_json::from_slice::<String>(&result).unwrap().into()
             }
+            _ => panic!("failed to add liquidity"),
         };
 
-        order.set_lpt_id(lpt_id);
+        order.lpt_id = lpt_id;
 
         self.order_nonce += 1;
         let order_id = self.order_nonce;
-        self.decrease_balance(user.clone(), order.sell_token.clone(), amount.0);
-
         self.insert_order_for_user(&user, order, order_id);
 
         PromiseOrValue::Value(U128(0))

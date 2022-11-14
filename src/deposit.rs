@@ -2,7 +2,7 @@ use crate::big_decimal::WBalance;
 use crate::*;
 use near_sdk::{Gas, PromiseOrValue};
 
-const GAS_FOR_DEPOSIT: Gas = Gas(120_000_000_000_000);
+const GAS_FOR_DEPOSIT: Gas = Gas(2_000_000_000_000);
 
 impl Contract {
     pub fn deposit(

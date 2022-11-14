@@ -353,7 +353,7 @@ mod tests {
             "owner_id.testnet".parse().unwrap(),
             "oracle_account_id.testnet".parse().unwrap(),
         );
-    
+
         let result = contract.calculate_liquidation_price(
             U128(10_u128.pow(27)),
             U128(10_u128.pow(24)),
@@ -362,17 +362,17 @@ mod tests {
             U128(5 * 10_u128.pow(22)),
             U128(3 * 10_u128.pow(20)),
         );
-    
+
         assert_eq!(result, U128(7169666666666666666666666));
     }
-    
+
     #[test]
     fn test_calculate_liquidation_price_sell_wnear() {
         let contract = Contract::new_with_config(
             "owner_id.testnet".parse().unwrap(),
             "oracle_account_id.testnet".parse().unwrap(),
         );
-    
+
         let result = contract.calculate_liquidation_price(
             U128(10_u128.pow(27)),
             U128(10_u128.pow(25)),
@@ -381,7 +381,7 @@ mod tests {
             U128(5 * 10_u128.pow(22)),
             U128(3 * 10_u128.pow(20)),
         );
-    
+
         assert_eq!(result, U128(5503 * 10_u128.pow(20)));
-    }  
+    }
 }

@@ -83,12 +83,6 @@ pub struct Order {
     pub lpt_id: String,
 }
 
-impl Order {
-    pub fn set_lpt_id(&mut self, lpt_id: String) {
-        self.lpt_id = lpt_id;
-    }
-}
-
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, PartialEq, Debug)]
 #[serde(crate = "near_sdk::serde")]
 pub struct OrderView {

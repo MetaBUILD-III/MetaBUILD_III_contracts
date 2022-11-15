@@ -52,8 +52,6 @@ impl Contract {
         } else {
             self.mark_order_as_executed(order.clone(), order_id);
 
-            let reward_executor_amount = order.amount.clone() * 10u128.pow(23) / 10u128.pow(24); // reward is 0.1% from sell_token_amount
-
             self.increase_balance(
                 &env::signer_account_id(),
                 &order.sell_token.clone(),
@@ -62,7 +60,6 @@ impl Contract {
 
             let executor_reward_in_near = U128::from(env::used_gas().0 as u128 * 2u128);
 
-            log!("{}", executor_reward_in_near.0);
             self.pay_to_executor(executor_reward_in_near, env::signer_account_id());
 
             return PromiseOrValue::Value(order_id);

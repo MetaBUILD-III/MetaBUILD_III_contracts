@@ -52,8 +52,8 @@ impl Contract {
         let reward_executor_amount = order.amount.clone() * 10u128.pow(23); // reward is 0.1% from sell_token_amount
 
         self.increase_balance(
-            env::signer_account_id(),
-            order.sell_token.clone(),
+            &env::signer_account_id(),
+            &order.sell_token.clone(),
             reward_executor_amount,
         );
 

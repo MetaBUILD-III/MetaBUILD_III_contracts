@@ -7,6 +7,7 @@ use near_sdk::env::current_account_id;
 use near_sdk::{ext_contract, is_promise_success, log, serde_json, Gas, PromiseResult};
 
 const GAS_FOR_BORROW: Gas = Gas(180_000_000_000_000);
+// const GAS_FOR_CREATE_ORDER: Gas = GAS_FOR_BORROW + Gas(50_000_000_000_000);
 
 #[ext_contract(ext_self)]
 trait ContractCallbackInterface {
@@ -14,16 +15,11 @@ trait ContractCallbackInterface {
 
     fn get_pool_info_callback(
         &mut self,
-        user: AccountId,
-        amount: WBalance,
-        amount_to_proceed: WBalance,
         order: Order,
     ) -> PromiseOrValue<WBalance>;
 
     fn add_liquidity_callback(
         &mut self,
-        user: AccountId,
-        amount: WBalance,
         order: Order,
     ) -> PromiseOrValue<Balance>;
 }
@@ -45,26 +41,24 @@ impl Contract {
             "User doesn't have enough deposit to proceed this action"
         );
 
-        let amount_to_proceed = if BigDecimal::from(leverage) > BigDecimal::one() {
-            let borrow_token_amount = U128::from(
-                BigDecimal::from(amount)
-                    * self.calculate_xrate(buy_token.clone(), sell_token.clone())
-                    * BigDecimal::from(leverage),
-            );
-            log!("borrowing amount {}", borrow_token_amount.0);
+        // let amount_to_proceed = if BigDecimal::from(leverage) > BigDecimal::one() {
+        //     let borrow_token_amount = U128::from(
+        //         BigDecimal::from(amount)
+        //             * self.calculate_xrate(buy_token.clone(), sell_token.clone())
+        //             * BigDecimal::from(leverage),
+        //     );
+        //     self.borrow_buy_token(borrow_token_amount, buy_token.clone());
 
-            self.borrow_buy_token(borrow_token_amount, buy_token.clone());
-
-            // if we have borrowed some tokens we have to add to liquidity pool corresponding amount
-            borrow_token_amount
-        } else {
-            amount
-        };
+        //     // if we have borrowed some tokens we have to add to liquidity pool corresponding amount
+        //     borrow_token_amount
+        // } else {
+        //     amount
+        // };
 
         let order = Order {
             status: OrderStatus::Pending,
             order_type,
-            amount: Balance::from(amount_to_proceed),
+            amount: Balance::from(amount),
             sell_token: sell_token.clone(),
             buy_token: buy_token.clone(),
             leverage: BigDecimal::from(leverage),
@@ -74,15 +68,23 @@ impl Contract {
             lpt_id: "".to_string(),
         };
 
-        self.get_pool_info_callback(user, amount, amount_to_proceed, order)
+        ext_ref_finance::ext(self.ref_finance_account.clone())
+        .with_attached_deposit(NO_DEPOSIT)
+        .with_unused_gas_weight(1)
+        .get_pool(self.view_pair(&order.sell_token, &order.buy_token).pool_id)
+        .then(
+            ext_self::ext(env::current_account_id())
+            .with_attached_deposit(NO_DEPOSIT)
+            .with_unused_gas_weight(99)
+            .get_pool_info_callback(order)
+        )
+        .into()
+        // self.get_pool_info_callback(user, amount, amount_to_proceed, order)
     }
 
     #[private]
     pub fn get_pool_info_callback(
         &mut self,
-        user: AccountId,
-        amount: WBalance,
-        amount_to_proceed: WBalance,
         mut order: Order,
     ) -> PromiseOrValue<WBalance> {
         require!(
@@ -106,19 +108,19 @@ impl Contract {
             "Some problem with pool, please contact with ref finance to support."
         );
 
-        // let mut left_point = pool_info.current_point as i32;
+        let mut left_point = pool_info.current_point as i32;
 
-        // while left_point % pool_info.point_delta as i32 != 0 {
-        //     left_point += 1;
-        // }
+        while left_point % pool_info.point_delta as i32 != 0 {
+            left_point += 1;
+        }
 
-        // let right_point = left_point + pool_info.point_delta as i32;
+        let right_point = left_point + pool_info.point_delta as i32;
 
-        // let point_delta = 40u64;
-        let left_point = -11320i32;
-        let right_point = -11280i32;
+        let amount = U128::from(
+            BigDecimal::from(order.amount) * BigDecimal::from(order.leverage),
+        );
 
-        let amount_x: WBalance = amount_to_proceed;
+        let amount_x: WBalance = amount;
         let amount_y = U128::from(0);
         let min_amount_x = U128::from(0);
         let min_amount_y = U128::from(0);
@@ -128,7 +130,7 @@ impl Contract {
             .with_attached_deposit(near_sdk::ONE_YOCTO)
             .ft_transfer_call(
                 self.ref_finance_account.clone(),
-                amount_to_proceed,
+                amount,
                 None,
                 "\"Deposit\"".to_string(),
             )
@@ -150,7 +152,7 @@ impl Contract {
                 ext_self::ext(current_account_id())
                     .with_static_gas(Gas::ONE_TERA * 2u64)
                     .with_attached_deposit(NO_DEPOSIT)
-                    .add_liquidity_callback(user, amount, order),
+                    .add_liquidity_callback(order),
             )
             .into()
     }
@@ -158,8 +160,6 @@ impl Contract {
     #[private]
     pub fn add_liquidity_callback(
         &mut self,
-        user: AccountId,
-        amount: WBalance,
         mut order: Order,
     ) -> PromiseOrValue<WBalance> {
         require!(
@@ -172,7 +172,11 @@ impl Contract {
             _ => (),
         };
 
-        self.decrease_balance(user.clone(), order.sell_token.clone(), amount.0);
+        self.decrease_balance(
+            &env::signer_account_id().clone(),
+            &order.sell_token.clone(), 
+            order.amount
+        );
 
         let lpt_id: String = match env::promise_result(1) {
             PromiseResult::Successful(result) => {
@@ -185,7 +189,7 @@ impl Contract {
 
         self.order_nonce += 1;
         let order_id = self.order_nonce;
-        self.insert_order_for_user(&user, order, order_id);
+        self.insert_order_for_user(&env::signer_account_id(), order, order_id);
 
         PromiseOrValue::Value(U128(0))
     }

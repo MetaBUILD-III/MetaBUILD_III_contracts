@@ -25,15 +25,15 @@ impl Contract {
             "Deposit was done by token, that are not currently supported"
         );
 
-        self.increase_balance(env::signer_account_id(), token, token_amount.0);
+        self.increase_balance(&env::signer_account_id(), &token, token_amount.0);
 
         PromiseOrValue::Value(U128(0))
     }
 
     pub fn increase_balance(
         &mut self,
-        account_id: AccountId,
-        token: AccountId,
+        account_id: &AccountId,
+        token: &AccountId,
         token_amount: Balance,
     ) {
         let increased_balance = self.balance_of(account_id.clone(), token.clone()) + token_amount;
@@ -42,8 +42,8 @@ impl Contract {
 
     pub fn decrease_balance(
         &mut self,
-        account_id: AccountId,
-        token: AccountId,
+        account_id: &AccountId,
+        token: &AccountId,
         token_amount: Balance,
     ) {
         require!(
@@ -51,15 +51,15 @@ impl Contract {
             "Decreased balance must be greater than 0"
         );
         self.set_balance(
-            account_id.clone(),
-            token.clone(),
+            &account_id.clone(),
+            &token.clone(),
             self.balance_of(account_id.clone(), token.clone()) - token_amount,
         )
     }
 
-    pub fn set_balance(&mut self, account_id: AccountId, token: AccountId, token_amount: Balance) {
+    pub fn set_balance(&mut self, account_id: &AccountId, token: &AccountId, token_amount: Balance) {
         let mut user_balance_by_token = self.balances.get(&account_id).unwrap_or_default();
-        user_balance_by_token.insert(token, token_amount);
+        user_balance_by_token.insert(token.clone(), token_amount);
         self.balances.insert(&account_id, &user_balance_by_token);
     }
 }
@@ -82,7 +82,7 @@ mod tests {
         let user: AccountId = AccountId::from_str("some_example_user.testnet").unwrap();
         let token: AccountId = AccountId::from_str("some_example_token.testnet").unwrap();
 
-        contract.set_balance(user.clone(), token.clone(), INITIAL_BALANCE);
+        contract.set_balance(&user.clone(), &token.clone(), INITIAL_BALANCE);
 
         assert_eq!(
             contract.balance_of(user.clone(), token.clone()),
@@ -96,14 +96,14 @@ mod tests {
     fn test_successful_increase_decrease_balance() {
         let (mut contract, user, token) = get_contract();
 
-        contract.increase_balance(user.clone(), token.clone(), AMOUNT_TO_INCREASE);
+        contract.increase_balance(&user.clone(), &token.clone(), AMOUNT_TO_INCREASE);
 
         assert_eq!(
             contract.balance_of(user.clone(), token.clone()),
             AMOUNT_TO_INCREASE + INITIAL_BALANCE
         );
 
-        contract.decrease_balance(user.clone(), token.clone(), AMOUNT_TO_DECREASE);
+        contract.decrease_balance(&user.clone(), &token.clone(), AMOUNT_TO_DECREASE);
 
         assert_eq!(
             contract.balance_of(user.clone(), token.clone()),
@@ -121,6 +121,6 @@ mod tests {
             INITIAL_BALANCE
         );
 
-        contract.decrease_balance(user.clone(), token.clone(), 10000 * AMOUNT_TO_DECREASE);
+        contract.decrease_balance(&user.clone(), &token.clone(), 10000 * AMOUNT_TO_DECREASE);
     }
 }

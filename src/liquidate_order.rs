@@ -93,8 +93,8 @@ impl Contract {
 
         let liquidation_incentive = order.amount * self.liquidation_threshold;
         self.increase_balance(
-            signer_account_id(),
-            order.buy_token.clone(),
+            &env::signer_account_id(),
+            &order.buy_token.clone(),
             liquidation_incentive,
         );
         let account = self.get_account_by(order_id.0).unwrap();

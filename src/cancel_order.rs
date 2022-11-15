@@ -292,8 +292,8 @@ impl Contract {
             / order.buy_token_price.value;
 
         self.increase_balance(
-            signer_account_id(),
-            order.sell_token.clone(),
+            &env::signer_account_id(),
+            &order.sell_token.clone(),
             expect_amount.round_u128() - order.amount * order.leverage.round_u128(),
         );
 

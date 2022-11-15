@@ -25,7 +25,7 @@ trait RefFinanceInterface {
         min_amount_y: U128,
     ) -> (U128, U128);
 
-    fn get_pool(&self, pool_id: LptId);
+    fn get_liquidity(&self, lpt_id: LptId);
 }
 
 /// Message parameters to receive via token function call.
@@ -65,4 +65,18 @@ pub struct SwapAction {
 #[serde(untagged)]
 pub enum Action {
     Swap(SwapAction),
+}
+
+
+#[derive(Serialize, Deserialize)]
+#[serde(crate = "near_sdk::serde")]
+pub struct LiquidityInfo {
+    pub lpt_id: LptId,
+    pub owner_id: AccountId,
+    pub pool_id: String,
+    pub left_point: i32,
+    pub right_point: i32,
+    pub amount: U128,
+    pub unclaimed_fee_x: U128,
+    pub unclaimed_fee_y: U128,
 }

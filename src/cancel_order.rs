@@ -61,7 +61,7 @@ impl Contract {
         ref_finance::ext(self.ref_finance_account.clone())
             .with_static_gas(Gas(10))
             .with_attached_deposit(NO_DEPOSIT)
-            .get_pool(order.lpt_id.clone())
+            .get_liquidity(order.lpt_id.clone())
             .then(
                 ext_self::ext(current_account_id())
                     .with_static_gas(Gas(5))
@@ -85,36 +85,25 @@ impl Contract {
         price_impact: U128,
         order_action: OrderAction,
     ) {
-        require!(
-            is_promise_success(),
-            "Some problem with pool on ref finance"
-        );
-        let pool_info = match env::promise_result(0) {
+        require!(is_promise_success(), "Failed to get_liquidity");
+        let position = match env::promise_result(0) {
             PromiseResult::NotReady => unreachable!(),
             PromiseResult::Successful(val) => {
-                if let Ok(pool) = near_sdk::serde_json::from_slice::<PoolInfo>(&val) {
-                    pool
-                } else {
-                    panic!("Some problem with pool parsing.")
-                }
+                near_sdk::serde_json::from_slice::<crate::ref_finance::LiquidityInfo>(&val).unwrap()
             }
             PromiseResult::Failed => panic!("Ref finance not found pool"),
         };
 
-        require!(
-            pool_info.state == PoolState::Running,
-            "Some problem with pool, please contact with ref finance to support."
-        );
+        // require!(
+        //     pool_info.state == PoolState::Running,
+        //     "Some problem with pool, please contact with ref finance to support."
+        // );
 
-        let buy_amount =
-            BigDecimal::from(order.amount) * order.leverage * order.sell_token_price.value
-                / order.buy_token_price.value;
-        let remove_liquidity_amount =
-            (buy_amount * self.get_price(order.buy_token.clone())).round_u128();
-
-        let min_amount_x = order.amount;
+        let remove_liquidity_amount = position.amount;
+        // TODO fix precision lost
+        let min_amount_x = order.amount - 1000;
         let min_amount_y = 0;
-        require!(pool_info.total_x.0 < remove_liquidity_amount, "Pool not hav enough liquidity");
+        // require!(pool_info.total_x.0 < remove_liquidity_amount, "Pool not hav enough liquidity");
 
         if order.status == OrderStatus::Pending {
             ref_finance::ext(self.ref_finance_account.clone())
@@ -122,7 +111,7 @@ impl Contract {
                 .with_attached_deposit(NO_DEPOSIT)
                 .remove_liquidity(
                     order.lpt_id.to_string(),
-                    U128(remove_liquidity_amount),
+                    remove_liquidity_amount,
                     U128(min_amount_x),
                     U128(min_amount_y),
                 )

@@ -135,7 +135,7 @@ near call limit_orders.v1.nearlend.testnet create_order '{
     "amount": "1000000000000000000000000000",
     "sell_token": "usdt.qa.v1.nearlend.testnet",
     "buy_token": "wnear.qa.v1.nearlend.testnet",
-    "leverage": "1000000000000000000000000" 
+    "leverage": "2000000000000000000000000" 
 }' --accountId nearlend.testnet --gas 300000000000000
 
 

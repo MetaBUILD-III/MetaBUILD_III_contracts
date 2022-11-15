@@ -4,7 +4,7 @@ use near_sdk::serde::{Deserialize, Serialize};
 
 pub type LptId = String;
 
-#[ext_contract(ref_finance)]
+#[ext_contract(ext_ref_finance)]
 trait RefFinanceInterface {
     fn add_liquidity(
         &mut self,
@@ -66,7 +66,6 @@ pub struct SwapAction {
 pub enum Action {
     Swap(SwapAction),
 }
-
 
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "near_sdk::serde")]

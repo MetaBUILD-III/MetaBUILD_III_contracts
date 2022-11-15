@@ -1,6 +1,6 @@
 use crate::big_decimal::{BigDecimal, WRatio};
 use crate::cancel_order::ext_self;
-use crate::ref_finance::ref_finance;
+use crate::ref_finance::ext_ref_finance;
 use crate::ref_finance::{Action, SwapAction, TokenReceiverMessage};
 use crate::utils::NO_DEPOSIT;
 use crate::utils::{ext_market, ext_token};
@@ -40,7 +40,7 @@ impl Contract {
         let min_amount_y = 0;
 
         if order.status == OrderStatus::Pending {
-            ref_finance::ext(self.ref_finance_account.clone())
+            ext_ref_finance::ext(self.ref_finance_account.clone())
                 .with_static_gas(Gas(10))
                 .with_attached_deposit(1)
                 .remove_liquidity(

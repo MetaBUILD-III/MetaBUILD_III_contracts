@@ -1,4 +1,4 @@
-use crate::ref_finance::ref_finance;
+use crate::ref_finance::ext_ref_finance;
 use crate::utils::{ext_token, NO_DEPOSIT};
 use crate::*;
 use near_sdk::env::current_account_id;
@@ -21,7 +21,7 @@ impl Contract {
         let min_amount_x = order.amount;
         let min_amount_y = 0;
 
-        ref_finance::ext(self.ref_finance_account.clone())
+        ext_ref_finance::ext(self.ref_finance_account.clone())
             .with_static_gas(Gas(10))
             .remove_liquidity(
                 order.lpt_id.clone(),

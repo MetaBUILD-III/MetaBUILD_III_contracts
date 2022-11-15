@@ -1,5 +1,5 @@
 use crate::big_decimal::{BigDecimal, WBalance};
-use crate::ref_finance::ref_finance;
+use crate::ref_finance::ext_ref_finance;
 use crate::utils::NO_DEPOSIT;
 use crate::utils::{ext_market, ext_token};
 use crate::*;
@@ -85,26 +85,26 @@ impl Contract {
         amount_to_proceed: WBalance,
         mut order: Order,
     ) -> PromiseOrValue<WBalance> {
-        // require!(
-        //     is_promise_success(),
-        //     "Some problem with pool on ref finance"
-        // );
-        // let pool_info = match env::promise_result(0) {
-        //     PromiseResult::NotReady => unreachable!(),
-        //     PromiseResult::Successful(val) => {
-        //         if let Ok(pool) = near_sdk::serde_json::from_slice::<PoolInfo>(&val) {
-        //             pool
-        //         } else {
-        //             panic!("Some problem with pool parsing.")
-        //         }
-        //     }
-        //     PromiseResult::Failed => panic!("Ref finance not found pool"),
-        // };
+        require!(
+            is_promise_success(),
+            "Some problem with pool on ref finance"
+        );
+        let pool_info = match env::promise_result(0) {
+            PromiseResult::NotReady => unreachable!(),
+            PromiseResult::Successful(val) => {
+                if let Ok(pool) = near_sdk::serde_json::from_slice::<PoolInfo>(&val) {
+                    pool
+                } else {
+                    panic!("Some problem with pool parsing.")
+                }
+            }
+            PromiseResult::Failed => panic!("Ref finance not found pool"),
+        };
 
-        // require!(
-        //     pool_info.state == PoolState::Running,
-        //     "Some problem with pool, please contact with ref finance to support."
-        // );
+        require!(
+            pool_info.state == PoolState::Running,
+            "Some problem with pool, please contact with ref finance to support."
+        );
 
         // let mut left_point = pool_info.current_point as i32;
 
@@ -133,7 +133,7 @@ impl Contract {
                 "\"Deposit\"".to_string(),
             )
             .and(
-                ref_finance::ext(self.ref_finance_account.clone())
+                ext_ref_finance::ext(self.ref_finance_account.clone())
                     .with_static_gas(Gas::ONE_TERA * 10u64)
                     .with_attached_deposit(NO_DEPOSIT)
                     .add_liquidity(

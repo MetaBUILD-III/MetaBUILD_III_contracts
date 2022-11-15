@@ -1,5 +1,5 @@
 use crate::big_decimal::{BigDecimal, WRatio};
-use crate::ref_finance::ref_finance;
+use crate::ref_finance::ext_ref_finance;
 use crate::ref_finance::{Action, SwapAction, TokenReceiverMessage};
 use crate::utils::NO_DEPOSIT;
 use crate::utils::{ext_market, ext_token};
@@ -58,7 +58,7 @@ impl Contract {
             })
             .clone();
 
-        ref_finance::ext(self.ref_finance_account.clone())
+        ext_ref_finance::ext(self.ref_finance_account.clone())
             .with_static_gas(Gas(10))
             .with_attached_deposit(NO_DEPOSIT)
             .get_liquidity(order.lpt_id.clone())
@@ -106,7 +106,7 @@ impl Contract {
         // require!(pool_info.total_x.0 < remove_liquidity_amount, "Pool not hav enough liquidity");
 
         if order.status == OrderStatus::Pending {
-            ref_finance::ext(self.ref_finance_account.clone())
+            ext_ref_finance::ext(self.ref_finance_account.clone())
                 .with_static_gas(Gas(10))
                 .with_attached_deposit(NO_DEPOSIT)
                 .remove_liquidity(

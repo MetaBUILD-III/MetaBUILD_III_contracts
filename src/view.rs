@@ -346,7 +346,7 @@ mod tests {
         };
         let pnl = contract.calculate_pnl(alice(), U128(1), market_data);
         assert!(pnl.is_profit);
-        assert_eq!(pnl.amount, U128(256558246105184350685977637895071072256));
+        assert_eq!(pnl.amount, U128(267986648087201142401833206452376181736));
     }
 
     #[test]

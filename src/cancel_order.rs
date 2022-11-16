@@ -4,8 +4,8 @@ use crate::ref_finance::{Action, SwapAction, TokenReceiverMessage};
 use crate::utils::NO_DEPOSIT;
 use crate::utils::{ext_market, ext_token};
 use crate::*;
-use near_sdk::env::{current_account_id, signer_account_id};
-use near_sdk::{ext_contract, is_promise_success, log, Gas, PromiseResult};
+use near_sdk::env::{block_height, current_account_id, signer_account_id};
+use near_sdk::{ext_contract, is_promise_success, log, Gas, PromiseResult, ONE_YOCTO};
 
 #[ext_contract(ext_self)]
 trait ContractCallbackInterface {
@@ -18,7 +18,7 @@ trait ContractCallbackInterface {
         order_action: OrderAction,
     );
     fn order_cancel_swap_callback(
-        &mut self,
+        &self,
         order_id: U128,
         order: Order,
         swap_fee: U128,
@@ -26,7 +26,7 @@ trait ContractCallbackInterface {
         order_action: OrderAction,
     );
     fn market_data_callback(
-        &mut self,
+        &self,
         order_id: U128,
         order: Order,
         swap_fee: U128,
@@ -34,7 +34,7 @@ trait ContractCallbackInterface {
         order_action: OrderAction,
     );
     fn get_pool_callback(
-        &mut self,
+        &self,
         order_id: U128,
         order: Order,
         swap_fee: U128,
@@ -42,13 +42,21 @@ trait ContractCallbackInterface {
         order_action: OrderAction,
     );
     fn get_liquidity_callback(
-        &mut self,
+        &self,
         order_id: U128,
         order: Order,
         swap_fee: U128,
         price_impact: U128,
         order_action: OrderAction,
         pool_info: PoolInfo,
+    );
+    fn repay_callback(
+        &self,
+        order_id: U128,
+        order: Order,
+        market_data: MarketData,
+        swap_fee: U128,
+        price_impact: U128,
     );
 }
 
@@ -92,7 +100,6 @@ impl Contract {
         price_impact: U128,
         order_action: OrderAction,
     ) {
-        log!("get_pool_callback attached gas: {}", env::prepaid_gas().0);
         require!(
             is_promise_success(),
             "Some problem with pool on ref finance"
@@ -143,10 +150,6 @@ impl Contract {
         order_action: OrderAction,
         pool_info: PoolInfo,
     ) {
-        log!(
-            "get_liquidity_callback attached gas: {}",
-            env::prepaid_gas().0
-        );
         require!(
             is_promise_success(),
             "Some problem with liquidity on ref finance"
@@ -174,7 +177,7 @@ impl Contract {
 
         if order.status == OrderStatus::Pending {
             ext_ref_finance::ext(self.ref_finance_account.clone())
-                .with_unused_gas_weight(80)
+                .with_unused_gas_weight(50)
                 .with_attached_deposit(NO_DEPOSIT)
                 .remove_liquidity(
                     order.lpt_id.to_string(),
@@ -184,7 +187,7 @@ impl Contract {
                 )
                 .then(
                     ext_self::ext(current_account_id())
-                        .with_unused_gas_weight(20)
+                        .with_unused_gas_weight(50)
                         .with_attached_deposit(NO_DEPOSIT)
                         .remove_liquidity_callback(
                             order_id,
@@ -273,6 +276,10 @@ impl Contract {
         price_impact: U128,
         order_action: OrderAction,
     ) {
+        log!(
+            "order_cancel_swap_callback attached gas: {}",
+            env::prepaid_gas().0
+        );
         let market_id = self.tokens_markets.get(&order.sell_token).unwrap();
 
         ext_market::ext(market_id)
@@ -281,7 +288,7 @@ impl Contract {
             .view_market_data()
             .then(
                 ext_self::ext(current_account_id())
-                    .with_static_gas(Gas(10))
+                    .with_static_gas(Gas(70))
                     .with_attached_deposit(NO_DEPOSIT)
                     .market_data_callback(order_id, order, swap_fee, price_impact, order_action),
             );
@@ -296,6 +303,10 @@ impl Contract {
         price_impact: U128,
         order_action: OrderAction,
     ) {
+        log!(
+            "market_data_callback attached gas: {}",
+            env::prepaid_gas().0
+        );
         require!(is_promise_success(), "failed to get market data.");
         let market_data = match env::promise_result(0) {
             PromiseResult::NotReady => panic!("failed to get market data"),
@@ -317,6 +328,37 @@ impl Contract {
     }
 
     fn final_order_cancel(
+        &self,
+        order_id: U128,
+        order: Order,
+        market_data: MarketData,
+        swap_fee: U128,
+        price_impact: U128,
+    ) {
+        log!("final_order_cancel attached gas: {}", env::prepaid_gas().0);
+        let market_id = self.tokens_markets.get(&order.sell_token).unwrap();
+        let borrow_fee = BigDecimal::from(market_data.borrow_rate_ratio.0)
+            * BigDecimal::from((block_height() - order.block) as u128);
+
+        ext_token::ext(order.sell_token.clone())
+            .with_static_gas(Gas::ONE_TERA * 35u64)
+            .with_attached_deposit(ONE_YOCTO)
+            .ft_transfer_call(
+                market_id,
+                U128(borrow_fee.round_u128()),
+                None,
+                "\"Repay\"".to_string(),
+            )
+            .then(
+                ext_self::ext(current_account_id())
+                    .with_static_gas(Gas::ONE_TERA * 3u64)
+                    .with_attached_deposit(NO_DEPOSIT)
+                    .repay_callback(order_id, order, market_data, swap_fee, price_impact),
+            );
+    }
+
+    #[private]
+    pub fn repay_callback(
         &mut self,
         order_id: U128,
         order: Order,
@@ -324,6 +366,7 @@ impl Contract {
         swap_fee: U128,
         price_impact: U128,
     ) {
+        log!("repay_callback attached gas: {}", env::prepaid_gas().0);
         let mut order = order.clone();
 
         let sell_amount =
@@ -337,7 +380,6 @@ impl Contract {
             * (BigDecimal::from(1) - BigDecimal::from(swap_fee))
             * (BigDecimal::from(1) - BigDecimal::from(price_impact))
             / (order.buy_token_price.value / BigDecimal::from(10_u128.pow(24)));
-
 
         self.increase_balance(
             &signer_account_id(),
@@ -385,7 +427,7 @@ mod tests {
     }
 
     #[test]
-    fn test_c_test() {
+    fn test_order_was_canceled() {
         let context = get_context(false);
         testing_env!(context);
         let mut contract = Contract::new_with_config(
@@ -442,7 +484,7 @@ mod tests {
 
         let swap_fee = U128(1);
         let price_impact = U128(1);
-        contract.final_order_cancel(order_id, order, market_data, swap_fee, price_impact);
+        contract.repay_callback(order_id, order, market_data, swap_fee, price_impact);
 
         let orders = contract.orders.get(&alice()).unwrap();
         let order = orders.get(&1).unwrap();

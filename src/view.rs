@@ -192,8 +192,8 @@ impl Contract {
     ) -> WBigDecimal {
         let collateral_usd =
             BigDecimal::from(sell_token_amount) * BigDecimal::from(sell_token_price);
-        let position_amount_usd = collateral_usd * BigDecimal::from(leverage.0);
-        let borrow_amount = collateral_usd * (BigDecimal::from(leverage.0) - BigDecimal::from(1));
+        let position_amount_usd = collateral_usd * BigDecimal::from(leverage);
+        let borrow_amount = collateral_usd * (BigDecimal::from(leverage) - BigDecimal::from(1_u32));
         let buy_amount = position_amount_usd / BigDecimal::from(buy_token_price);
 
         let liquidation_price = (position_amount_usd - self.volatility_rate * collateral_usd
@@ -350,7 +350,7 @@ mod tests {
     }
 
     #[test]
-    fn test_calculate_liquidation_price_sell_usdt() {
+    fn test_calculate_liquidation_leverage_3() {
         let contract = Contract::new_with_config(
             "owner_id.testnet".parse().unwrap(),
             "oracle_account_id.testnet".parse().unwrap(),
@@ -360,7 +360,7 @@ mod tests {
             U128(10_u128.pow(27)),
             U128(10_u128.pow(24)),
             U128(10_u128.pow(25)),
-            U128(3),
+            U128(3 * 10_u128.pow(24)),
             U128(5 * 10_u128.pow(22)),
             U128(3 * 10_u128.pow(20)),
         );
@@ -369,7 +369,7 @@ mod tests {
     }
 
     #[test]
-    fn test_calculate_liquidation_price_sell_wnear() {
+    fn test_calculate_liquidation_leverage_1_5() {
         let contract = Contract::new_with_config(
             "owner_id.testnet".parse().unwrap(),
             "oracle_account_id.testnet".parse().unwrap(),
@@ -377,13 +377,13 @@ mod tests {
 
         let result = contract.calculate_liquidation_price(
             U128(10_u128.pow(27)),
-            U128(10_u128.pow(25)),
             U128(10_u128.pow(24)),
-            U128(2),
+            U128(10_u128.pow(25)),
+            U128(15 * 10_u128.pow(23)),
             U128(5 * 10_u128.pow(22)),
             U128(3 * 10_u128.pow(20)),
         );
 
-        assert_eq!(result, U128(5503 * 10_u128.pow(20)));
+        assert_eq!(result, U128(3836333333333333333333333));
     }
 }

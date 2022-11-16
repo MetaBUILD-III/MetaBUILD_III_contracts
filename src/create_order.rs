@@ -46,6 +46,8 @@ impl Contract {
             lpt_id: "".to_string(),
         };
 
+        log!("{} prepaid {}", line!(), env::prepaid_gas().0);
+        log!("{} used_gas {}", line!(), env::used_gas().0);
         ext_ref_finance::ext(self.ref_finance_account.clone())
             .with_attached_deposit(NO_DEPOSIT)
             .with_static_gas(Gas::ONE_TERA * 5u64)
@@ -82,39 +84,6 @@ impl Contract {
             "Some problem with pool, please contact with ref finance to support."
         );
 
-        if order.leverage > BigDecimal::one() {
-            require!(
-                env::prepaid_gas() >= GAS_FOR_BORROW,
-                "Prepaid gas is not enough for borrow flow"
-            );
-
-            let token_market = self.get_market_by(&order.sell_token.clone());
-            let borrow_amount = U128::from(
-                BigDecimal::from(U128::from(order.amount)) * (order.leverage - BigDecimal::one()),
-            );
-
-            ext_market::ext(token_market)
-                .with_static_gas(GAS_FOR_BORROW)
-                .borrow(borrow_amount)
-                .then(
-                    ext_self::ext(env::current_account_id())
-                        .with_static_gas(Gas::ONE_TERA * 55u64)
-                        .borrow_callback(pool_info, order),
-                )
-                .into()
-        } else {
-            self.add_liquidity(pool_info, order)
-        }
-    }
-
-    #[private]
-    pub fn borrow_callback(
-        &mut self,
-        pool_info: PoolInfo,
-        order: Order,
-    ) -> PromiseOrValue<WBalance> {
-        require!(is_promise_success(), "failed to borrow assets");
-
         self.add_liquidity(pool_info, order)
     }
 
@@ -134,6 +103,8 @@ impl Contract {
         let min_amount_x = U128::from(0);
         let min_amount_y = U128::from(0);
 
+        log!("{} prepaid {}", line!(), env::prepaid_gas().0);
+        log!("{} used_gas {}", line!(), env::used_gas().0);
         let add_liquidity_promise = ext_token::ext(order.sell_token.clone())
             .with_static_gas(Gas::ONE_TERA * 35u64)
             .with_attached_deposit(near_sdk::ONE_YOCTO)
@@ -145,7 +116,7 @@ impl Contract {
             )
             .and(
                 ext_ref_finance::ext(self.ref_finance_account.clone())
-                    .with_static_gas(Gas::ONE_TERA * 10u64)
+                .with_static_gas(Gas::ONE_TERA * 10u64)
                     .with_attached_deposit(NO_DEPOSIT)
                     .add_liquidity(
                         self.view_pair(&order.sell_token, &order.buy_token).pool_id,
@@ -159,7 +130,7 @@ impl Contract {
             )
             .then(
                 ext_self::ext(current_account_id())
-                    .with_static_gas(Gas::ONE_TERA * 2u64)
+                .with_static_gas(Gas::ONE_TERA * 2u64)
                     .with_attached_deposit(NO_DEPOSIT)
                     .add_liquidity_callback(order.clone()),
             );
@@ -168,13 +139,15 @@ impl Contract {
 
     #[private]
     pub fn add_liquidity_callback(&mut self, mut order: Order) -> PromiseOrValue<WBalance> {
+        log!("{} prepaid {}", line!(), env::prepaid_gas().0);
+        log!("{} used_gas {}", line!(), env::used_gas().0);
+
         require!(
             env::promise_results_count() == 2,
             "Contract expected 2 results on the callback"
         );
         match env::promise_result(0) {
-            PromiseResult::NotReady => panic!("failed to deposit liquidity"),
-            PromiseResult::Failed => panic!("failed to deposit liquidity"),
+            PromiseResult::NotReady | PromiseResult::Failed => panic!("failed to deposit liquidity"),
             _ => (),
         };
 
@@ -197,6 +170,52 @@ impl Contract {
         let order_id = self.order_nonce;
         self.insert_order_for_user(&env::signer_account_id(), order, order_id);
 
+        PromiseOrValue::Value(U128(0))
+    }
+
+    pub fn borrow(&mut self, token: AccountId, amount: U128, leverage: U128) -> PromiseOrValue<WBalance> {
+        require!(
+            env::prepaid_gas() >= GAS_FOR_BORROW,
+            "Prepaid gas is not enough for borrow flow"
+        );
+
+        require!(
+            self.balance_of(env::signer_account_id(), token.clone()) >= amount.0,
+            "User doesn't have enough deposit to proceed this action"
+        );
+
+        // Skip borrow when leverage is less or equal to 1.0
+        if BigDecimal::from(leverage) <= BigDecimal::one() {
+            return PromiseOrValue::Value(U128(0));
+        }
+
+        let token_market = self.get_market_by(&token.clone());
+        let borrow_amount = U128::from(
+            BigDecimal::from(amount) * (BigDecimal::from(leverage) - BigDecimal::one()),
+        );
+
+        log!("{} prepaid {}", line!(), env::prepaid_gas().0);
+        log!("{} used_gas {}", line!(), env::used_gas().0);
+        ext_market::ext(token_market)
+            .with_static_gas(GAS_FOR_BORROW)
+            .borrow(borrow_amount)
+            .then(
+                ext_self::ext(env::current_account_id())
+                .with_unused_gas_weight(100)
+                .borrow_callback()
+            )
+            .into()
+    }
+
+    #[private]
+    pub fn borrow_callback(
+        &mut self,
+        // pool_info: PoolInfo,
+        // order: Order,
+    ) -> PromiseOrValue<WBalance> {
+        require!(is_promise_success(), "failed to borrow assets");
+
+        // self.add_liquidity(pool_info, order)
         PromiseOrValue::Value(U128(0))
     }
 

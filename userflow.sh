@@ -40,16 +40,17 @@ near view dcl.ref-dev.testnet get_liquidity '{
 }'
 
 
-# for i in {185..200}
-# do
-#     near call dcl.ref-dev.testnet remove_liquidity '{
-#         "lpt_id": "usdt.qa.v1.nearlend.testnet|wnear.qa.v1.nearlend.testnet|2000#'$i'",
-#         "amount": "14209047472819294933719294",
-#         "min_amount_x": "0",
-#         "min_amount_y": "0"
-#     }' --accountId limit_orders.v1.nearlend.testnet --gas 300000000000000 &"
-# done
-# wait
+for i in {200..250}
+# for i in 218 204 209
+do
+    near call dcl.ref-dev.testnet remove_liquidity '{
+        "lpt_id": "usdt.qa.v1.nearlend.testnet|wnear.qa.v1.nearlend.testnet|2000#'$i'",
+        "amount": "14209047472819294933719294",
+        "min_amount_x": "0",
+        "min_amount_y": "0"
+    }' --accountId limit_orders.v1.nearlend.testnet --gas 300000000000000 &
+done
+wait
 
 # swap_fee 0.002 = 0.2%
 # price_impact 0.05 = 5%
@@ -58,3 +59,12 @@ near call limit_orders.v1.nearlend.testnet cancel_order '{
     "swap_fee": "2000000000000000000000",
     "price_impact": "50000000000000000000000"
 }' --accountId nearlend.testnet --gas 300000000000000
+
+
+near view usdt_market.qa.v1.nearlend.testnet get_eligible_to_borrow_uncollateralized_account '{ "account": "limit_orders.v1.nearlend.testnet" }' --accountId shared_admin.testnet
+
+near view controller.qa.v1.nearlend.testnet get_eligible_to_borrow_uncollateralized_account '{ "account": "limit_orders.v1.nearlend.testnet" }'
+
+near call usdt_market.qa.v1.nearlend.testnet borrow '{
+    "amount": "1000000000000000000000000000"
+}' --accountId limit_orders.v1.nearlend.testnet --gas 195000000000000

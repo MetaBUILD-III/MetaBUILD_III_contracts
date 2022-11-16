@@ -12,8 +12,8 @@ const GAS_FOR_BORROW: Gas = Gas(200_000_000_000_000);
 #[ext_contract(ext_self)]
 trait ContractCallbackInterface {
     fn get_pool_info_callback(&mut self, order: Order) -> PromiseOrValue<WBalance>;
+    fn borrow_callback(&mut self, pool_info: PoolInfo, order: Order) -> PromiseOrValue<WBalance>;
     fn add_liquidity_callback(&mut self, order: Order) -> PromiseOrValue<Balance>;
-    fn borrow_callback(&mut self) -> PromiseOrValue<WBalance>;
 }
 
 #[near_bindgen]

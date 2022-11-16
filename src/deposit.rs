@@ -57,7 +57,12 @@ impl Contract {
         )
     }
 
-    pub fn set_balance(&mut self, account_id: &AccountId, token: &AccountId, token_amount: Balance) {
+    pub fn set_balance(
+        &mut self,
+        account_id: &AccountId,
+        token: &AccountId,
+        token_amount: Balance,
+    ) {
         let mut user_balance_by_token = self.balances.get(&account_id).unwrap_or_default();
         user_balance_by_token.insert(token.clone(), token_amount);
         self.balances.insert(&account_id, &user_balance_by_token);

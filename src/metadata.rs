@@ -38,7 +38,7 @@ impl Default for MarketData {
     }
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone, Debug)]
 #[serde(crate = "near_sdk::serde")]
 pub struct PnLView {
     pub is_profit: bool,
@@ -68,7 +68,7 @@ pub enum OrderType {
     Sell,
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone, Debug)]
 #[serde(crate = "near_sdk::serde")]
 pub struct Order {
     pub status: OrderStatus,
@@ -155,4 +155,17 @@ pub struct PoolInfo {
 #[serde(crate = "near_sdk::serde")]
 pub enum PoolState {
     Running,
+}
+
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, PartialEq)]
+#[serde(crate = "near_sdk::serde")]
+pub struct Liquidity {
+    pub lpt_id: String,
+    pub owner_id: AccountId,
+    pub pool_id: String,
+    pub left_point: i64,
+    pub right_point: i64,
+    pub amount: U128,
+    pub unclaimed_fee_x: U128,
+    pub unclaimed_fee_y: U128,
 }

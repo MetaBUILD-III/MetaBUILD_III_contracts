@@ -26,7 +26,6 @@ trait RefFinanceInterface {
         min_amount_y: U128,
     ) -> (U128, U128);
 
-    
     fn get_pool(&self, pool_id: PoolId);
 
     fn get_liquidity(&self, lpt_id: LptId);

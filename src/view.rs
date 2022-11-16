@@ -1,6 +1,7 @@
 use crate::big_decimal::{BigDecimal, WRatio};
 use crate::*;
 use near_sdk::env::block_height;
+use near_sdk::log;
 
 #[near_bindgen]
 impl Contract {
@@ -61,19 +62,18 @@ impl Contract {
             + BigDecimal::from(order.amount))
             * self.get_price(order.sell_token.clone());
 
-        let borrow_fee =
-            BigDecimal::from(data.borrow_rate_ratio.0 * (block_height() - order.block) as u128);
+        let borrow_fee = BigDecimal::from(data.borrow_rate_ratio.0)
+            * BigDecimal::from((block_height() - order.block) as u128);
 
         let pnlv: PnLView = if expect_amount > sell_amount_open + borrow_fee {
             let lenpnl = (expect_amount - sell_amount_open - borrow_fee)
-                * BigDecimal::from(10_u128.pow(24) - self.protocol_fee);
+                - BigDecimal::from(self.protocol_fee);
             PnLView {
                 is_profit: true,
                 amount: WRatio::from(lenpnl),
             }
         } else {
-            let lenpnl = (sell_amount_open + borrow_fee - expect_amount)
-                * BigDecimal::from(10_u128.pow(24) - self.protocol_fee);
+            let lenpnl = sell_amount_open + borrow_fee - expect_amount;
             PnLView {
                 is_profit: false,
                 amount: WRatio::from(lenpnl),

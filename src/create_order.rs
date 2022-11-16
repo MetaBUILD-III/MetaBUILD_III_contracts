@@ -82,7 +82,6 @@ impl Contract {
             "Some problem with pool, please contact with ref finance to support."
         );
 
-
         if order.leverage > BigDecimal::one() {
             require!(
                 env::prepaid_gas() >= GAS_FOR_BORROW,
@@ -90,18 +89,17 @@ impl Contract {
             );
 
             let token_market = self.get_market_by(&order.sell_token.clone());
-            let borrow_amount = U128::from(BigDecimal::from(U128::from(order.amount)) * (order.leverage - BigDecimal::one()));
+            let borrow_amount = U128::from(
+                BigDecimal::from(U128::from(order.amount)) * (order.leverage - BigDecimal::one()),
+            );
 
             ext_market::ext(token_market)
                 .with_static_gas(GAS_FOR_BORROW)
                 .borrow(borrow_amount)
                 .then(
                     ext_self::ext(env::current_account_id())
-                    .with_static_gas(Gas::ONE_TERA * 55u64)
-                    .borrow_callback(
-                        pool_info,
-                        order
-                    )
+                        .with_static_gas(Gas::ONE_TERA * 55u64)
+                        .borrow_callback(pool_info, order),
                 )
                 .into()
         } else {
@@ -110,11 +108,12 @@ impl Contract {
     }
 
     #[private]
-    pub fn borrow_callback(&mut self, pool_info: PoolInfo, order: Order) -> PromiseOrValue<WBalance> {
-        require!(
-            is_promise_success(),
-            "failed to borrow assets"
-        );
+    pub fn borrow_callback(
+        &mut self,
+        pool_info: PoolInfo,
+        order: Order,
+    ) -> PromiseOrValue<WBalance> {
+        require!(is_promise_success(), "failed to borrow assets");
 
         self.add_liquidity(pool_info, order)
     }
@@ -136,35 +135,35 @@ impl Contract {
         let min_amount_y = U128::from(0);
 
         let add_liquidity_promise = ext_token::ext(order.sell_token.clone())
-        .with_static_gas(Gas::ONE_TERA * 35u64)
-        .with_attached_deposit(near_sdk::ONE_YOCTO)
-        .ft_transfer_call(
-            self.ref_finance_account.clone(),
-            amount,
-            None,
-            "\"Deposit\"".to_string(),
-        )
-        .and(
-            ext_ref_finance::ext(self.ref_finance_account.clone())
-                .with_static_gas(Gas::ONE_TERA * 10u64)
-                .with_attached_deposit(NO_DEPOSIT)
-                .add_liquidity(
-                    self.view_pair(&order.sell_token, &order.buy_token).pool_id,
-                    left_point,
-                    right_point,
-                    amount_x,
-                    amount_y,
-                    min_amount_x,
-                    min_amount_y,
-                ),
-        )
-        .then(
-            ext_self::ext(current_account_id())
-                .with_static_gas(Gas::ONE_TERA * 2u64)
-                .with_attached_deposit(NO_DEPOSIT)
-                .add_liquidity_callback(order.clone()),
-        );
-    add_liquidity_promise.into()
+            .with_static_gas(Gas::ONE_TERA * 35u64)
+            .with_attached_deposit(near_sdk::ONE_YOCTO)
+            .ft_transfer_call(
+                self.ref_finance_account.clone(),
+                amount,
+                None,
+                "\"Deposit\"".to_string(),
+            )
+            .and(
+                ext_ref_finance::ext(self.ref_finance_account.clone())
+                    .with_static_gas(Gas::ONE_TERA * 10u64)
+                    .with_attached_deposit(NO_DEPOSIT)
+                    .add_liquidity(
+                        self.view_pair(&order.sell_token, &order.buy_token).pool_id,
+                        left_point,
+                        right_point,
+                        amount_x,
+                        amount_y,
+                        min_amount_x,
+                        min_amount_y,
+                    ),
+            )
+            .then(
+                ext_self::ext(current_account_id())
+                    .with_static_gas(Gas::ONE_TERA * 2u64)
+                    .with_attached_deposit(NO_DEPOSIT)
+                    .add_liquidity_callback(order.clone()),
+            );
+        add_liquidity_promise.into()
     }
 
     #[private]

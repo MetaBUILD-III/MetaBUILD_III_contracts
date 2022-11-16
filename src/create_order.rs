@@ -12,7 +12,7 @@ const GAS_FOR_BORROW: Gas = Gas(200_000_000_000_000);
 #[ext_contract(ext_self)]
 trait ContractCallbackInterface {
     fn get_pool_info_callback(&mut self, order: Order) -> PromiseOrValue<WBalance>;
-    fn borrow_callback(&mut self, pool_info: PoolInfo, order: Order) -> PromiseOrValue<WBalance>;
+    fn borrow_callback(&mut self) -> PromiseOrValue<WBalance>;
     fn add_liquidity_callback(&mut self, order: Order) -> PromiseOrValue<Balance>;
 }
 
@@ -116,7 +116,7 @@ impl Contract {
             )
             .and(
                 ext_ref_finance::ext(self.ref_finance_account.clone())
-                .with_static_gas(Gas::ONE_TERA * 10u64)
+                    .with_static_gas(Gas::ONE_TERA * 10u64)
                     .with_attached_deposit(NO_DEPOSIT)
                     .add_liquidity(
                         self.view_pair(&order.sell_token, &order.buy_token).pool_id,
@@ -130,7 +130,7 @@ impl Contract {
             )
             .then(
                 ext_self::ext(current_account_id())
-                .with_static_gas(Gas::ONE_TERA * 2u64)
+                    .with_static_gas(Gas::ONE_TERA * 2u64)
                     .with_attached_deposit(NO_DEPOSIT)
                     .add_liquidity_callback(order.clone()),
             );
@@ -147,7 +147,9 @@ impl Contract {
             "Contract expected 2 results on the callback"
         );
         match env::promise_result(0) {
-            PromiseResult::NotReady | PromiseResult::Failed => panic!("failed to deposit liquidity"),
+            PromiseResult::NotReady | PromiseResult::Failed => {
+                panic!("failed to deposit liquidity")
+            }
             _ => (),
         };
 
@@ -173,7 +175,12 @@ impl Contract {
         PromiseOrValue::Value(U128(0))
     }
 
-    pub fn borrow(&mut self, token: AccountId, amount: U128, leverage: U128) -> PromiseOrValue<WBalance> {
+    pub fn borrow(
+        &mut self,
+        token: AccountId,
+        amount: U128,
+        leverage: U128,
+    ) -> PromiseOrValue<WBalance> {
         require!(
             env::prepaid_gas() >= GAS_FOR_BORROW,
             "Prepaid gas is not enough for borrow flow"
@@ -190,9 +197,8 @@ impl Contract {
         }
 
         let token_market = self.get_market_by(&token.clone());
-        let borrow_amount = U128::from(
-            BigDecimal::from(amount) * (BigDecimal::from(leverage) - BigDecimal::one()),
-        );
+        let borrow_amount =
+            U128::from(BigDecimal::from(amount) * (BigDecimal::from(leverage) - BigDecimal::one()));
 
         log!("{} prepaid {}", line!(), env::prepaid_gas().0);
         log!("{} used_gas {}", line!(), env::used_gas().0);
@@ -201,8 +207,8 @@ impl Contract {
             .borrow(borrow_amount)
             .then(
                 ext_self::ext(env::current_account_id())
-                .with_unused_gas_weight(100)
-                .borrow_callback()
+                    .with_unused_gas_weight(100)
+                    .borrow_callback(),
             )
             .into()
     }

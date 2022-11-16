@@ -2,11 +2,13 @@ use crate::ref_finance::ext_ref_finance;
 use crate::utils::{ext_token, NO_DEPOSIT};
 use crate::*;
 use near_sdk::env::current_account_id;
-use near_sdk::{ext_contract, is_promise_success, Gas};
+use near_sdk::{ext_contract, is_promise_success, log, Gas, GasWeight, Promise, PromiseResult};
+use std::cmp::min;
 
 #[ext_contract(ext_self)]
 trait ContractCallbackInterface {
     fn remove_liquidity_for_execute_order_callback(&self, order: Order, order_id: U128);
+    fn execute_order_callback(&self, order: Order, order_id: U128);
 }
 
 #[near_bindgen]
@@ -16,22 +18,49 @@ impl Contract {
         require!(order.is_some(), "There is no such order to be executed");
 
         let order = order.unwrap().clone();
-        // TODO set real arguments
-        let amount = 1;
-        let min_amount_x = order.amount;
+
+        ext_ref_finance::ext(self.ref_finance_account.clone())
+            .with_static_gas(Gas(10))
+            .with_attached_deposit(NO_DEPOSIT)
+            .get_liquidity(order.lpt_id.clone())
+            .then(
+                ext_self::ext(current_account_id())
+                    .with_static_gas(Gas(5))
+                    .with_attached_deposit(NO_DEPOSIT)
+                    .execute_order_callback(order, order_id),
+            )
+            .into()
+    }
+
+    #[private]
+    pub fn execute_order_callback(&self, order: Order, order_id: U128) -> PromiseOrValue<U128> {
+        require!(is_promise_success(), "Failed to get_liquidity");
+
+        let position = match env::promise_result(0) {
+            PromiseResult::NotReady => unreachable!(),
+            PromiseResult::Successful(val) => {
+                near_sdk::serde_json::from_slice::<crate::ref_finance::LiquidityInfo>(&val).unwrap()
+            }
+            PromiseResult::Failed => panic!("Ref finance not found pool"),
+        };
+
+        let remove_liquidity_amount = position.amount;
+
+        let min_amount_x = 0;
         let min_amount_y = 0;
+        // let min_amount_y = BigDecimal::from(order.amount- 1000) * (order.sell_token_price.value / order.buy_token_price.value);
 
         ext_ref_finance::ext(self.ref_finance_account.clone())
             .with_static_gas(Gas(10))
             .remove_liquidity(
                 order.lpt_id.clone(),
-                U128(amount),
+                remove_liquidity_amount,
                 U128(min_amount_x),
                 U128(min_amount_y),
             )
             .then(
                 ext_self::ext(current_account_id())
-                    .with_static_gas(Gas(5))
+                    .with_static_gas(Gas(10))
                     .with_attached_deposit(NO_DEPOSIT)
                     .remove_liquidity_for_execute_order_callback(order, order_id),
             )
@@ -44,29 +73,22 @@ impl Contract {
         order: Order,
         order_id: U128,
     ) -> PromiseOrValue<U128> {
-        // if !is_promise_success() {
-        // panic!("Some problem with remove liquidity");
-        // } else {
-        self.mark_order_as_executed(order.clone(), order_id);
+        if !is_promise_success() {
+            panic!("Some problem with remove liquidity");
+        } else {
+            self.mark_order_as_executed(order.clone(), order_id);
 
-        let reward_executor_amount = order.amount.clone() * 10u128.pow(23); // reward is 0.1% from sell_token_amount
+            let executor_reward_in_near = U128::from(env::used_gas().0 as u128 * 2u128);
 
-        self.increase_balance(
-            &env::signer_account_id(),
-            &order.sell_token.clone(),
-            reward_executor_amount,
-        );
+            self.pay_to_executor(executor_reward_in_near, env::signer_account_id());
 
-        ext_token::ext(order.sell_token.clone())
-            .with_static_gas(Gas(10))
-            .with_attached_deposit(1)
-            .ft_transfer(
-                env::signer_account_id(),
-                U128::from(reward_executor_amount),
-                Some("Transfer some tokens to executor".to_string()),
-            );
+            return PromiseOrValue::Value(order_id);
+        }
+    }
 
-        return PromiseOrValue::Value(order_id);
+    #[private]
+    pub fn pay_to_executor(&self, amount: U128, to: AccountId) -> Promise {
+        Promise::new(to).transfer(amount.0)
     }
 }
 

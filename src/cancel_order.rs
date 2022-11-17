@@ -50,14 +50,7 @@ trait ContractCallbackInterface {
         order_action: OrderAction,
         pool_info: PoolInfo,
     );
-    fn repay_callback(
-        &self,
-        order_id: U128,
-        order: Order,
-        market_data: MarketData,
-        swap_fee: U128,
-        price_impact: U128,
-    );
+    fn repay_callback(&self) -> PromiseOrValue<U128>;
 }
 
 #[near_bindgen]
@@ -277,7 +270,7 @@ impl Contract {
         order_action: OrderAction,
     ) {
         log!(
-            "order_cancel_swap_callback attached gas: {}",
+            "Order cancel swap callback attached gas: {}",
             env::prepaid_gas().0
         );
         let market_id = self.tokens_markets.get(&order.sell_token).unwrap();
@@ -304,7 +297,7 @@ impl Contract {
         order_action: OrderAction,
     ) {
         log!(
-            "market_data_callback attached gas: {}",
+            "Market data callback attached gas: {}",
             env::prepaid_gas().0
         );
         require!(is_promise_success(), "failed to get market data.");
@@ -328,37 +321,6 @@ impl Contract {
     }
 
     fn final_order_cancel(
-        &self,
-        order_id: U128,
-        order: Order,
-        market_data: MarketData,
-        swap_fee: U128,
-        price_impact: U128,
-    ) {
-        log!("final_order_cancel attached gas: {}", env::prepaid_gas().0);
-        let market_id = self.tokens_markets.get(&order.sell_token).unwrap();
-        let borrow_fee = BigDecimal::from(market_data.borrow_rate_ratio.0)
-            * BigDecimal::from((block_height() - order.block) as u128);
-
-        ext_token::ext(order.sell_token.clone())
-            .with_static_gas(Gas::ONE_TERA * 35u64)
-            .with_attached_deposit(ONE_YOCTO)
-            .ft_transfer_call(
-                market_id,
-                U128(borrow_fee.round_u128()),
-                None,
-                "\"Repay\"".to_string(),
-            )
-            .then(
-                ext_self::ext(current_account_id())
-                    .with_static_gas(Gas::ONE_TERA * 3u64)
-                    .with_attached_deposit(NO_DEPOSIT)
-                    .repay_callback(order_id, order, market_data, swap_fee, price_impact),
-            );
-    }
-
-    #[private]
-    pub fn repay_callback(
         &mut self,
         order_id: U128,
         order: Order,
@@ -366,9 +328,9 @@ impl Contract {
         swap_fee: U128,
         price_impact: U128,
     ) {
-        log!("repay_callback attached gas: {}", env::prepaid_gas().0);
-        let mut order = order.clone();
+        log!("Final order cancel attached gas: {}", env::prepaid_gas().0);
 
+        let mut order = order.clone();
         let sell_amount =
             order.sell_token_price.value * BigDecimal::from(order.amount) * order.leverage;
 
@@ -404,6 +366,45 @@ impl Contract {
         order.status = OrderStatus::Canceled;
         orders.insert(order_id.0 as u64, order);
         self.orders.insert(&signer_account_id(), &orders);
+    }
+
+    pub fn repay(&self, order_id: U128, market_data: MarketData) {
+        let orders = self.orders.get(&signer_account_id()).unwrap_or_else(|| {
+            panic!("Orders for account: {} not found", signer_account_id());
+        });
+
+        let order = orders
+            .get(&(order_id.0 as u64))
+            .unwrap_or_else(|| {
+                panic!("Order with id: {} not found", order_id.0);
+            })
+            .clone();
+        let market_id = self.tokens_markets.get(&order.sell_token).unwrap();
+        let borrow_fee = BigDecimal::from(market_data.borrow_rate_ratio.0)
+            * BigDecimal::from((block_height() - order.block) as u128);
+
+        ext_token::ext(order.sell_token.clone())
+            .with_static_gas(Gas::ONE_TERA * 35u64)
+            .with_attached_deposit(ONE_YOCTO)
+            .ft_transfer_call(
+                market_id,
+                U128(borrow_fee.round_u128()),
+                None,
+                "\"Repay\"".to_string(),
+            )
+            .then(
+                ext_self::ext(current_account_id())
+                    .with_static_gas(Gas::ONE_TERA * 3u64)
+                    .with_attached_deposit(NO_DEPOSIT)
+                    .repay_callback(),
+            );
+    }
+
+    #[private]
+    pub fn repay_callback(&self) -> PromiseOrValue<U128> {
+        require!(is_promise_success(), "failed to repay assets");
+        //TODO: add repay success event
+        PromiseOrValue::Value(U128(0))
     }
 }
 
@@ -484,7 +485,7 @@ mod tests {
 
         let swap_fee = U128(1);
         let price_impact = U128(1);
-        contract.repay_callback(order_id, order, market_data, swap_fee, price_impact);
+        contract.final_order_cancel(order_id, order, market_data, swap_fee, price_impact);
 
         let orders = contract.orders.get(&alice()).unwrap();
         let order = orders.get(&1).unwrap();

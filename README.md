@@ -56,4 +56,11 @@ Once order is created it coud be automatically handled by `Executor` when the or
 
 ### Liquidate position 
 
+<details>
+<summary>Diagramm</summary>
+
+![Omomo - Liquidate order flow](https://user-images.githubusercontent.com/91728093/202560985-05edd4f9-3c30-44de-97be-e00a22a80d48.jpg)
+  
+</details>
+
 # Roadmap

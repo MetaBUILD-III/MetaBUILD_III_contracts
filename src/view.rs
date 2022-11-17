@@ -53,13 +53,13 @@ impl Contract {
             .clone();
 
         let sell_amount_open =
-            BigDecimal::from(order.amount) * order.leverage * order.sell_token_price.value;
+            BigDecimal::from(U128(order.amount)) * order.leverage * order.sell_token_price.value;
 
         let borrow_amount =
-            BigDecimal::from(order.amount) * order.leverage - BigDecimal::from(order.amount);
+            BigDecimal::from(U128(order.amount)) * (order.leverage - BigDecimal::one());
 
         let expect_amount = (borrow_amount / self.get_price(order.buy_token.clone())
-            + BigDecimal::from(order.amount))
+            + BigDecimal::from(U128(order.amount)))
             * self.get_price(order.sell_token.clone());
 
         let borrow_fee = BigDecimal::from(data.borrow_rate_ratio.0)
@@ -157,10 +157,10 @@ impl Contract {
         });
 
         let buy_token =
-            BigDecimal::from(order.amount) * order.leverage * order.sell_token_price.value
+            BigDecimal::from(U128(order.amount)) * order.leverage * order.sell_token_price.value
                 / order.buy_token_price.value;
 
-        let sell_token = BigDecimal::from(order.amount) * order.leverage;
+        let sell_token = BigDecimal::from(U128(order.amount)) * order.leverage;
 
         let open_price = order.buy_token_price.clone();
 
@@ -193,7 +193,7 @@ impl Contract {
         let collateral_usd =
             BigDecimal::from(sell_token_amount) * BigDecimal::from(sell_token_price);
         let position_amount_usd = collateral_usd * BigDecimal::from(leverage);
-        let borrow_amount = collateral_usd * (BigDecimal::from(leverage) - BigDecimal::from(1_u32));
+        let borrow_amount = collateral_usd * (BigDecimal::from(leverage) - BigDecimal::one());
         let buy_amount = position_amount_usd / BigDecimal::from(buy_token_price);
 
         let liquidation_price = (position_amount_usd - self.volatility_rate * collateral_usd

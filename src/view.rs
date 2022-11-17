@@ -55,25 +55,22 @@ impl Contract {
         let sell_amount_open =
             BigDecimal::from(U128(order.amount)) * order.leverage * order.sell_token_price.value;
 
-        let borrow_amount =
-            BigDecimal::from(U128(order.amount)) * (order.leverage - BigDecimal::one());
+        // let borrow_amount =
+        //     BigDecimal::from(U128(order.amount)) * (order.leverage - BigDecimal::one());
 
-        let expect_amount = (borrow_amount / self.get_price(order.buy_token.clone())
-            + BigDecimal::from(U128(order.amount)))
-            * self.get_price(order.sell_token.clone());
+        let sell_amount_close = sell_amount_open * self.get_price(order.buy_token.clone()) / order.buy_token_price.value;
 
-        let borrow_fee = BigDecimal::from(data.borrow_rate_ratio.0)
-            * BigDecimal::from((block_height() - order.block) as u128);
+        let borrow_fee = BigDecimal::from(data.borrow_rate_ratio) * BigDecimal::from(U128((block_height() - order.block) as u128));
 
-        let pnlv: PnLView = if expect_amount > sell_amount_open + borrow_fee {
-            let lenpnl = (expect_amount - sell_amount_open - borrow_fee)
-                - BigDecimal::from(self.protocol_fee);
+        let pnlv: PnLView = if sell_amount_close > sell_amount_open + borrow_fee {
+            let protocol_fee = BigDecimal::one() - BigDecimal::from(U128::from(self.protocol_fee));
+            let lenpnl =  protocol_fee * (sell_amount_close - sell_amount_open - borrow_fee);
             PnLView {
                 is_profit: true,
                 amount: WRatio::from(lenpnl),
             }
         } else {
-            let lenpnl = sell_amount_open + borrow_fee - expect_amount;
+            let lenpnl = sell_amount_open + borrow_fee - sell_amount_close;
             PnLView {
                 is_profit: false,
                 amount: WRatio::from(lenpnl),

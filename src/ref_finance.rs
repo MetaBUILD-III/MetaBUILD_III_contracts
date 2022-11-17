@@ -31,35 +31,16 @@ trait RefFinanceInterface {
     fn get_liquidity(&self, lpt_id: LptId);
 }
 
-/// Message parameters to receive via token function call.
-#[derive(Serialize, Deserialize)]
-#[serde(crate = "near_sdk::serde")]
-#[serde(untagged)]
-pub enum TokenReceiverMessage {
-    /// Alternative to deposit + execute actions call.
-    Execute {
-        force: bool,
-        /// List of sequential actions.
-        actions: Vec<Action>,
-    },
-}
-
 /// Single swap action.
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "near_sdk::serde")]
-pub struct SwapAction {
+pub struct Swap {
     /// Pool which should be used for swapping.
-    pub pool_id: String,
-    /// Token to swap from.
-    pub token_in: AccountId,
-    /// Amount to exchange.
-    /// If amount_in is None, it will take amount_out from previous step.
-    /// Will fail if amount_in is None on the first step.
-    pub amount_in: Option<U128>,
+    pub pool_ids: Vec<String>,
     /// Token to swap into.
-    pub token_out: AccountId,
+    pub output_token: AccountId,
     /// Required minimum amount of token_out.
-    pub min_amount_out: U128,
+    pub min_output_amount: U128,
 }
 
 /// Single action. Allows to execute sequence of various actions initiated by an account.
@@ -67,7 +48,9 @@ pub struct SwapAction {
 #[serde(crate = "near_sdk::serde")]
 #[serde(untagged)]
 pub enum Action {
-    Swap(SwapAction),
+    SwapAction{
+        Swap: Swap
+    },
 }
 
 #[derive(Serialize, Deserialize)]

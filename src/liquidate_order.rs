@@ -1,7 +1,7 @@
 use crate::big_decimal::{BigDecimal, WRatio};
 use crate::cancel_order::ext_self;
 use crate::ref_finance::ext_ref_finance;
-use crate::ref_finance::{Action, SwapAction, TokenReceiverMessage};
+use crate::ref_finance::{Action, Swap};
 use crate::utils::NO_DEPOSIT;
 use crate::utils::{ext_market, ext_token};
 use crate::*;

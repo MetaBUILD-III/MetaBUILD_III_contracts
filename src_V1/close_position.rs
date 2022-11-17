@@ -22,7 +22,7 @@ trait ContractCallbackInterface {
 /// Single swap action.
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "near_sdk::serde")]
-pub struct SwapAction {
+pub struct Swap {
     /// Pool which should be used for swapping.
     pub pool_id: u64,
     /// Token to swap from.
@@ -42,7 +42,7 @@ pub struct SwapAction {
 #[serde(crate = "near_sdk::serde")]
 #[serde(untagged)]
 pub enum Action {
-    Swap(SwapAction),
+    Swap(Swap),
 }
 
 /// Message parameters to receive via token function call.
@@ -90,7 +90,7 @@ impl Contract {
         position: Position,
         min_amount_out: U128,
     ) -> PromiseOrValue<Balance> {
-        let actions: Vec<Action> = vec![Action::Swap(SwapAction {
+        let actions: Vec<Action> = vec![Action::Swap(Swap {
             pool_id: self.pool_id,
             token_in: position.buy_token.clone(),
             amount_in: Some(position.borrow_amount.into()),

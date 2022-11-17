@@ -20,12 +20,12 @@ impl Contract {
         let order = order.unwrap().clone();
 
         ext_ref_finance::ext(self.ref_finance_account.clone())
-            .with_static_gas(Gas(10))
+            .with_static_gas(Gas::ONE_TERA * 10u64)
             .with_attached_deposit(NO_DEPOSIT)
             .get_liquidity(order.lpt_id.clone())
             .then(
                 ext_self::ext(current_account_id())
-                    .with_static_gas(Gas(5))
+                    .with_static_gas(Gas::ONE_TERA * 45u64)
                     .with_attached_deposit(NO_DEPOSIT)
                     .execute_order_callback(order, order_id),
             )
@@ -51,7 +51,7 @@ impl Contract {
         // let min_amount_y = BigDecimal::from(order.amount- 1000) * (order.sell_token_price.value / order.buy_token_price.value);
 
         ext_ref_finance::ext(self.ref_finance_account.clone())
-            .with_static_gas(Gas(10))
+            .with_static_gas(Gas::ONE_TERA * 35u64)
             .remove_liquidity(
                 order.lpt_id.clone(),
                 remove_liquidity_amount,
@@ -60,7 +60,7 @@ impl Contract {
             )
             .then(
                 ext_self::ext(current_account_id())
-                    .with_static_gas(Gas(10))
+                    .with_static_gas(Gas::ONE_TERA * 10u64)
                     .with_attached_deposit(NO_DEPOSIT)
                     .remove_liquidity_for_execute_order_callback(order, order_id),
             )

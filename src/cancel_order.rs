@@ -368,7 +368,17 @@ impl Contract {
         self.orders.insert(&signer_account_id(), &orders);
     }
 
-    pub fn repay(&self, order: Order, market_data: MarketData) {
+    pub fn repay(&self, order_id: U128, market_data: MarketData) {
+        let orders = self.orders.get(&signer_account_id()).unwrap_or_else(|| {
+            panic!("Orders for account: {} not found", signer_account_id());
+        });
+
+        let order = orders
+            .get(&(order_id.0 as u64))
+            .unwrap_or_else(|| {
+                panic!("Order with id: {} not found", order_id.0);
+            })
+            .clone();
         let market_id = self.tokens_markets.get(&order.sell_token).unwrap();
         let borrow_fee = BigDecimal::from(market_data.borrow_rate_ratio.0)
             * BigDecimal::from((block_height() - order.block) as u128);

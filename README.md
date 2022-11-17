@@ -48,7 +48,10 @@ Once order is created it coud be automatically handled by `Executor` when the or
 <summary>Diagramm</summary>
   
 ![Omomo - Execute order flow](https://user-images.githubusercontent.com/91728093/202554598-6102cc9b-f059-4f9e-b57d-4dd37efa196d.jpg)
+![Omomo - Cancel order flow](https://user-images.githubusercontent.com/91728093/202560845-6a3e2781-56a3-4192-946c-45eb7d0bb06a.jpg)
+![Omomo - Take profit order flow](https://user-images.githubusercontent.com/91728093/202560868-34de50da-3ea2-42e9-8057-acc834c9caed.jpg)
 
+  
 </details>
 
 ### Liquidate position 

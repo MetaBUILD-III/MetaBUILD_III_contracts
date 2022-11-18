@@ -52,28 +52,40 @@ impl Contract {
             })
             .clone();
 
-        let sell_amount_open =
-            BigDecimal::from(U128(order.amount)) * order.leverage * order.sell_token_price.value;
+        let buy_amount =
+            order.leverage * BigDecimal::from(order.amount) / order.buy_token_price.value;
 
-        // let borrow_amount =
-        //     BigDecimal::from(U128(order.amount)) * (order.leverage - BigDecimal::one());
+        let borrow_amount = BigDecimal::from(U128(order.amount))
+            * (order.leverage - BigDecimal::one())
+            * BigDecimal::from(10_u128.pow(24));
 
-        let sell_amount_close = sell_amount_open * self.get_price(order.buy_token.clone()) / order.buy_token_price.value;
+        let borrow_fee = borrow_amount * BigDecimal::from(data.borrow_rate_ratio);
+        // fee by blocks count
+        //* BigDecimal::from(block_height() - order.block);
 
-        let borrow_fee = BigDecimal::from(data.borrow_rate_ratio) * BigDecimal::from(U128((block_height() - order.block) as u128));
+        //swap_fee 0.0003
+        let expect_amount = buy_amount * order.sell_token_price.value
+            - borrow_amount
+            - borrow_fee
+            - borrow_amount * BigDecimal::from(0.0003);
 
-        let pnlv: PnLView = if sell_amount_close > sell_amount_open + borrow_fee {
-            let protocol_fee = BigDecimal::one() - BigDecimal::from(U128::from(self.protocol_fee));
-            let lenpnl =  protocol_fee * (sell_amount_close - sell_amount_open - borrow_fee);
+        let pnlv: PnLView = if expect_amount.round_u128() > order.amount {
+            let lenpnl = (expect_amount
+                - BigDecimal::from(order.amount)
+                - (BigDecimal::from(order.amount)
+                    * BigDecimal::from(self.protocol_fee / 10_u128.pow(24))))
+            .round_u128();
+
             PnLView {
                 is_profit: true,
-                amount: WRatio::from(lenpnl),
+                amount: U128(lenpnl),
             }
         } else {
-            let lenpnl = sell_amount_open + borrow_fee - sell_amount_close;
+            let lenpnl = (BigDecimal::from(order.amount) - expect_amount).round_u128();
+
             PnLView {
                 is_profit: false,
-                amount: WRatio::from(lenpnl),
+                amount: U128(lenpnl),
             }
         };
 
@@ -215,7 +227,7 @@ mod tests {
             .current_account_id("margin.nearland.testnet".parse().unwrap())
             .signer_account_id(alice())
             .predecessor_account_id("usdt_market.qa.nearland.testnet".parse().unwrap())
-            .block_index(103930920)
+            .block_index(721)
             .block_timestamp(1)
             .is_view(is_view)
             .build()
@@ -331,7 +343,7 @@ mod tests {
                 value: BigDecimal::from(4.22),
             },
         );
-        let order1 = "{\"status\":\"Executed\",\"order_type\":\"Buy\",\"amount\":1000000100000000000000000000,\"sell_token\":\"usdt.qa.v1.nearlend.testnet\",\"buy_token\":\"wnear.qa.v1.nearlend.testnet\",\"leverage\":\"2.5\",\"sell_token_price\":{\"ticker_id\":\"USDT\",\"value\":\"1.01\"},\"buy_token_price\":{\"ticker_id\":\"WNEAR\",\"value\":\"4.22\"},\"block\":103930916,\"lpt_id\":\"usdt.qa.v1.nearlend.testnet|wnear.qa.v1.nearlend.testnet|2000#132\"}".to_string();
+        let order1 = "{\"status\":\"Executed\",\"order_type\":\"Buy\",\"amount\":1500000000000000000000000000,\"sell_token\":\"usdt.qa.v1.nearlend.testnet\",\"buy_token\":\"wnear.qa.v1.nearlend.testnet\",\"leverage\":\"2.0\",\"sell_token_price\":{\"ticker_id\":\"USDT\",\"value\":\"3.3\"},\"buy_token_price\":{\"ticker_id\":\"WNEAR\",\"value\":\"4.59\"},\"block\":1,\"lpt_id\":\"usdt.qa.v1.nearlend.testnet|wnear.qa.v1.nearlend.testnet|2000#132\"}".to_string();
         contract.add_order(alice(), order1.clone());
         let market_data = MarketData {
             total_supplies: U128(10_u128.pow(24)),
@@ -339,11 +351,11 @@ mod tests {
             total_reserves: U128(10_u128.pow(24)),
             exchange_rate_ratio: U128(10_u128.pow(24)),
             interest_rate_ratio: U128(10_u128.pow(24)),
-            borrow_rate_ratio: U128(10_u128.pow(24)),
+            borrow_rate_ratio: U128(5 * 10_u128.pow(22)),
         };
         let pnl = contract.calculate_pnl(alice(), U128(1), market_data);
-        assert!(pnl.is_profit);
-        assert_eq!(pnl.amount, U128(267986648087201142401833206452376181736));
+        assert!(!pnl.is_profit);
+        assert_eq!(pnl.amount, U128(918587254901960784313725490));
     }
 
     #[test]

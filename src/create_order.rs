@@ -1,6 +1,6 @@
 use crate::big_decimal::{BigDecimal, WBalance};
 use crate::ref_finance::ext_ref_finance;
-use crate::utils::{NO_DEPOSIT,ext_market, ext_token};
+use crate::utils::{ext_market, ext_token, NO_DEPOSIT};
 use crate::*;
 use near_sdk::env::current_account_id;
 use near_sdk::{ext_contract, is_promise_success, serde_json, Gas, PromiseResult};

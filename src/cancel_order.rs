@@ -1,6 +1,6 @@
 use crate::big_decimal::{BigDecimal, WRatio};
 use crate::ref_finance::ext_ref_finance;
-use crate::ref_finance::{Action, SwapAction, TokenReceiverMessage};
+use crate::ref_finance::{Action, Swap};
 use crate::utils::NO_DEPOSIT;
 use crate::utils::{ext_market, ext_token};
 use crate::*;
@@ -114,23 +114,27 @@ impl Contract {
             "Some problem with pool, please contact with ref finance to support."
         );
 
-        ext_ref_finance::ext(self.ref_finance_account.clone())
-            .with_unused_gas_weight(2)
-            .with_attached_deposit(NO_DEPOSIT)
-            .get_liquidity(order.lpt_id.clone())
-            .then(
-                ext_self::ext(current_account_id())
-                    .with_unused_gas_weight(98)
-                    .with_attached_deposit(NO_DEPOSIT)
-                    .get_liquidity_callback(
-                        order_id,
-                        order,
-                        swap_fee,
-                        price_impact,
-                        order_action,
-                        pool_info,
-                    ),
-            );
+        if order.status == OrderStatus::Pending {
+            ext_ref_finance::ext(self.ref_finance_account.clone())
+                .with_unused_gas_weight(2)
+                .with_attached_deposit(NO_DEPOSIT)
+                .get_liquidity(order.lpt_id.clone())
+                .then(
+                    ext_self::ext(current_account_id())
+                        .with_unused_gas_weight(98)
+                        .with_attached_deposit(NO_DEPOSIT)
+                        .get_liquidity_callback(
+                            order_id,
+                            order,
+                            swap_fee,
+                            price_impact,
+                            order_action,
+                            pool_info,
+                        ),
+                );
+        } else {
+            self.swap(order_id, order, swap_fee, price_impact, order_action);
+        }
     }
 
     #[private]
@@ -168,31 +172,27 @@ impl Contract {
             "Pool not have enough liquidity"
         );
 
-        if order.status == OrderStatus::Pending {
-            ext_ref_finance::ext(self.ref_finance_account.clone())
-                .with_unused_gas_weight(50)
-                .with_attached_deposit(NO_DEPOSIT)
-                .remove_liquidity(
-                    order.lpt_id.to_string(),
-                    U128(remove_liquidity_amount),
-                    U128(min_amount_x),
-                    U128(min_amount_y),
-                )
-                .then(
-                    ext_self::ext(current_account_id())
-                        .with_unused_gas_weight(50)
-                        .with_attached_deposit(NO_DEPOSIT)
-                        .remove_liquidity_callback(
-                            order_id,
-                            order,
-                            swap_fee,
-                            price_impact,
-                            order_action,
-                        ),
-                );
-        } else {
-            self.swap(order_id, order, swap_fee, price_impact, order_action);
-        }
+        ext_ref_finance::ext(self.ref_finance_account.clone())
+            .with_unused_gas_weight(50)
+            .with_attached_deposit(NO_DEPOSIT)
+            .remove_liquidity(
+                order.lpt_id.to_string(),
+                U128(remove_liquidity_amount),
+                U128(min_amount_x),
+                U128(min_amount_y),
+            )
+            .then(
+                ext_self::ext(current_account_id())
+                    .with_unused_gas_weight(50)
+                    .with_attached_deposit(NO_DEPOSIT)
+                    .remove_liquidity_callback(
+                        order_id,
+                        order,
+                        swap_fee,
+                        price_impact,
+                        order_action,
+                    ),
+            );
     }
 
     #[private]
@@ -217,19 +217,15 @@ impl Contract {
         order_action: OrderAction,
     ) {
         let buy_amount =
-            BigDecimal::from(order.amount) * order.leverage * order.sell_token_price.value
+            BigDecimal::from(U128::from(order.amount)) * order.leverage * order.sell_token_price.value * self.get_price(order.buy_token.clone())
                 / order.buy_token_price.value;
-        let min_amount = buy_amount * self.get_price(order.buy_token.clone());
-        let actions: Vec<Action> = vec![Action::Swap(SwapAction {
-            pool_id: self.view_pair(&order.sell_token, &order.buy_token).pool_id,
-            token_in: order.buy_token.clone(),
-            amount_in: Some(WRatio::from(200)),
-            token_out: order.sell_token.clone(),
-            min_amount_out: WRatio::from(200),
-        })];
-        let action = TokenReceiverMessage::Execute {
-            force: true,
-            actions,
+
+        let action = Action::SwapAction{ 
+            Swap: Swap {
+                pool_ids: vec![self.view_pair(&order.sell_token, &order.buy_token).pool_id],
+                output_token: order.sell_token.clone(),
+                min_output_amount: WBalance::from(0),
+            }
         };
 
         log!(
@@ -332,16 +328,15 @@ impl Contract {
 
         let mut order = order.clone();
         let sell_amount =
-            order.sell_token_price.value * BigDecimal::from(order.amount) * order.leverage;
+            order.sell_token_price.value * BigDecimal::from(U128::from(order.amount)) * order.leverage;
 
         let pnl = self.calculate_pnl(signer_account_id(), order_id, market_data);
 
         let expect_amount = self.get_price(order.buy_token.clone())
-            / BigDecimal::from(10_u128.pow(24))
             * sell_amount
-            * (BigDecimal::from(1) - BigDecimal::from(swap_fee))
-            * (BigDecimal::from(1) - BigDecimal::from(price_impact))
-            / (order.buy_token_price.value / BigDecimal::from(10_u128.pow(24)));
+            * (BigDecimal::one() - BigDecimal::from(swap_fee))
+            * (BigDecimal::one() - BigDecimal::from(price_impact))
+            / order.buy_token_price.value;
 
         self.increase_balance(
             &signer_account_id(),

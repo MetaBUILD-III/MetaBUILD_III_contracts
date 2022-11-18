@@ -20,12 +20,12 @@ impl Contract {
         let order = order.unwrap().clone();
 
         ext_ref_finance::ext(self.ref_finance_account.clone())
-            .with_static_gas(Gas::ONE_TERA * 10u64)
+            .with_static_gas(Gas::ONE_TERA * 5u64)
             .with_attached_deposit(NO_DEPOSIT)
             .get_liquidity(order.lpt_id.clone())
             .then(
                 ext_self::ext(current_account_id())
-                    .with_static_gas(Gas::ONE_TERA * 45u64)
+                    .with_unused_gas_weight(100)
                     .with_attached_deposit(NO_DEPOSIT)
                     .execute_order_callback(order, order_id),
             )
@@ -51,7 +51,7 @@ impl Contract {
         // let min_amount_y = BigDecimal::from(order.amount- 1000) * (order.sell_token_price.value / order.buy_token_price.value);
 
         ext_ref_finance::ext(self.ref_finance_account.clone())
-            .with_static_gas(Gas::ONE_TERA * 35u64)
+            .with_static_gas(Gas::ONE_TERA * 100u64)
             .remove_liquidity(
                 order.lpt_id.clone(),
                 remove_liquidity_amount,
@@ -60,7 +60,7 @@ impl Contract {
             )
             .then(
                 ext_self::ext(current_account_id())
-                    .with_static_gas(Gas::ONE_TERA * 10u64)
+                    .with_unused_gas_weight(100)
                     .with_attached_deposit(NO_DEPOSIT)
                     .remove_liquidity_for_execute_order_callback(order, order_id),
             )
@@ -78,17 +78,9 @@ impl Contract {
         } else {
             self.mark_order_as_executed(order.clone(), order_id);
 
-            let executor_reward_in_near = U128::from(env::used_gas().0 as u128 * 2u128);
-
-            self.pay_to_executor(executor_reward_in_near, env::signer_account_id());
-
-            return PromiseOrValue::Value(order_id);
+            let executor_reward_in_near = env::used_gas().0 as Balance * 2u128;
+            Promise::new(env::signer_account_id()).transfer(executor_reward_in_near).into()
         }
-    }
-
-    #[private]
-    pub fn pay_to_executor(&self, amount: U128, to: AccountId) -> Promise {
-        Promise::new(to).transfer(amount.0)
     }
 }
 

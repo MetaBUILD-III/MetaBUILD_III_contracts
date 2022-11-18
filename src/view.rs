@@ -75,12 +75,14 @@ impl Contract {
                 - (BigDecimal::from(order.amount)
                     * BigDecimal::from(self.protocol_fee / 10_u128.pow(24))))
             .round_u128();
+
             PnLView {
                 is_profit: true,
                 amount: U128(lenpnl),
             }
         } else {
             let lenpnl = (BigDecimal::from(order.amount) - expect_amount).round_u128();
+
             PnLView {
                 is_profit: false,
                 amount: U128(lenpnl),

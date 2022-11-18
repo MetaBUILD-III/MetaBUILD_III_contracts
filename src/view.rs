@@ -1,7 +1,5 @@
 use crate::big_decimal::{BigDecimal, WRatio};
 use crate::*;
-use near_sdk::env::block_height;
-use near_sdk::log;
 
 #[near_bindgen]
 impl Contract {
@@ -138,6 +136,7 @@ impl Contract {
         pairs
     }
 
+    /// Returns the balance of the given account on certain token. If the account doesn't exist will return `"0"`.
     pub fn balance_of(&self, account_id: AccountId, token: AccountId) -> Balance {
         match self.balances.get(&account_id) {
             None => 0,
@@ -145,6 +144,7 @@ impl Contract {
         }
     }
 
+    /// Returns price of the given token. If the token is not registered, will return `"0"`.
     pub fn view_price(&self, token_id: AccountId) -> Price {
         self.prices.get(&token_id).unwrap_or_else(|| {
             panic!("Price for token: {} not found", token_id);

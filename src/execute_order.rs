@@ -1,9 +1,8 @@
 use crate::ref_finance::ext_ref_finance;
-use crate::utils::{ext_token, NO_DEPOSIT};
+use crate::utils::NO_DEPOSIT;
 use crate::*;
 use near_sdk::env::current_account_id;
-use near_sdk::{ext_contract, is_promise_success, log, Gas, GasWeight, Promise, PromiseResult};
-use std::cmp::min;
+use near_sdk::{ext_contract, is_promise_success, Gas, Promise, PromiseResult};
 
 #[ext_contract(ext_self)]
 trait ContractCallbackInterface {
@@ -47,8 +46,9 @@ impl Contract {
         let remove_liquidity_amount = position.amount;
 
         let min_amount_x = 0;
-        let min_amount_y = 0;
-        // let min_amount_y = BigDecimal::from(order.amount- 1000) * (order.sell_token_price.value / order.buy_token_price.value);
+        let min_amount_y =
+            BigDecimal::from(order.amount) * order.leverage * order.sell_token_price.value
+                / order.buy_token_price.value;
 
         ext_ref_finance::ext(self.ref_finance_account.clone())
             .with_static_gas(Gas::ONE_TERA * 100u64)
@@ -56,7 +56,7 @@ impl Contract {
                 order.lpt_id.clone(),
                 remove_liquidity_amount,
                 U128(min_amount_x),
-                U128(min_amount_y),
+                U128::from(min_amount_y),
             )
             .then(
                 ext_self::ext(current_account_id())
@@ -79,7 +79,9 @@ impl Contract {
             self.mark_order_as_executed(order.clone(), order_id);
 
             let executor_reward_in_near = env::used_gas().0 as Balance * 2u128;
-            Promise::new(env::signer_account_id()).transfer(executor_reward_in_near).into()
+            Promise::new(env::signer_account_id())
+                .transfer(executor_reward_in_near)
+                .into()
         }
     }
 }

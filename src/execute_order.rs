@@ -12,9 +12,13 @@ trait ContractCallbackInterface {
 
 #[near_bindgen]
 impl Contract {
+    /// Executes order by inner order_id set on ref finance once the price range was crossed.
+    /// Gets pool info, removes liquidity presented by one asset and marks order as executed.
     pub fn execute_order(&self, order_id: U128) -> PromiseOrValue<U128> {
         let order = self.get_order_by(order_id.0);
         require!(order.is_some(), "There is no such order to be executed");
+
+        assert_eq!(order.as_ref().unwrap().status.clone(), OrderStatus::Pending, "Error. Order has to be Pending to be executed");
 
         let order = order.unwrap().clone();
 

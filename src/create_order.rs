@@ -16,7 +16,7 @@ trait ContractCallbackInterface {
 
 #[near_bindgen]
 impl Contract {
-    /// Creates an order with given order_type, amount, sell_token, buy_token & leverage
+    /// Creates an order with given order_type, amount, sell_token, buy_token & leverage.
     ///
     /// Checks ref finance pool information for current price & borrow if leverage > 1.
     ///

@@ -1,4 +1,3 @@
-use crate::common::Actions;
 use crate::*;
 use near_contract_standards::fungible_token::receiver::FungibleTokenReceiver;
 use near_sdk::json_types::U128;
@@ -7,6 +6,9 @@ use near_sdk::{log, serde_json, Balance, PromiseOrValue};
 
 #[near_bindgen]
 impl FungibleTokenReceiver for Contract {
+    /// Accepts token to be deposited by user.
+    ///
+    /// msg format for deposit "{"Deposit": {"token": "<token_to_be_deposited>"}}"
     fn ft_on_transfer(
         &mut self,
         sender_id: AccountId,

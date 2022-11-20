@@ -18,7 +18,11 @@ impl Contract {
         let order = self.get_order_by(order_id.0);
         require!(order.is_some(), "There is no such order to be executed");
 
-        assert_eq!(order.as_ref().unwrap().status.clone(), OrderStatus::Pending, "Error. Order has to be Pending to be executed");
+        assert_eq!(
+            order.as_ref().unwrap().status.clone(),
+            OrderStatus::Pending,
+            "Error. Order has to be Pending to be executed"
+        );
 
         let order = order.unwrap().clone();
 

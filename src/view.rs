@@ -268,59 +268,6 @@ mod tests {
     }
 
     #[test]
-    fn view_orders_test() {
-        let context = get_context(false);
-        testing_env!(context);
-        let mut contract = Contract::new_with_config(
-            "owner_id.testnet".parse().unwrap(),
-            "oracle_account_id.testnet".parse().unwrap(),
-        );
-
-        let order1 = "{\"status\":\"Executed\",\"order_type\":\"Buy\",\"amount\":1000000100000000000000000000,\"sell_token\":\"usdt.qa.v1.nearlend.testnet\",\"buy_token\":\"wnear.qa.v1.nearlend.testnet\",\"leverage\":\"2.5\",\"sell_token_price\":{\"ticker_id\":\"USDT\",\"value\":\"1.01\"},\"buy_token_price\":{\"ticker_id\":\"WNEAR\",\"value\":\"4.22\"},\"block\":103930916,\"lpt_id\":\"usdt.qa.v1.nearlend.testnet|wnear.qa.v1.nearlend.testnet|2000#543\"}".to_string();
-        contract.add_order(alice(), order1.clone());
-
-        let order2 = "{\"status\":\"Canceled\",\"order_type\":\"Buy\",\"amount\":2000001100000000000000000000,\"sell_token\":\"usdt.qa.v1.nearlend.testnet\",\"buy_token\":\"wnear.qa.v1.nearlend.testnet\",\"leverage\":\"1.0\",\"sell_token_price\":{\"ticker_id\":\"USDT\",\"value\":\"0.99\"},\"buy_token_price\":{\"ticker_id\":\"WNEAR\",\"value\":\"3.99\"},\"block\":103930918,\"lpt_id\":\"usdt.qa.v1.nearlend.testnet|wnear.qa.v1.nearlend.testnet|2000#732\"}".to_string();
-        contract.add_order(alice(), order2.clone());
-
-        let orders = contract.view_orders(
-            alice(),
-            "usdt.qa.v1.nearlend.testnet".parse().unwrap(),
-            "wnear.qa.v1.nearlend.testnet".parse().unwrap(),
-        );
-        let order1_un: Order = serde_json::from_str(order1.as_str()).unwrap();
-        let order2_un: Order = serde_json::from_str(order2.as_str()).unwrap();
-        let expect_result = vec![
-            OrderView {
-                order_id: U128(1),
-                status: order1_un.status,
-                order_type: order1_un.order_type,
-                amount: U128(order1_un.amount),
-                sell_token: order1_un.sell_token,
-                buy_token: order1_un.buy_token,
-                leverage: WBigDecimal::from(order1_un.leverage),
-                buy_token_price: WRatio::from(order1_un.buy_token_price.value),
-                fee: U128(contract.protocol_fee),
-                lpt_id: "usdt.qa.v1.nearlend.testnet|wnear.qa.v1.nearlend.testnet|2000#543"
-                    .to_string(),
-            },
-            OrderView {
-                order_id: U128(2),
-                status: order2_un.status,
-                order_type: order2_un.order_type,
-                amount: U128(order2_un.amount),
-                sell_token: order2_un.sell_token,
-                buy_token: order2_un.buy_token,
-                leverage: WBigDecimal::from(order2_un.leverage),
-                buy_token_price: WRatio::from(order2_un.buy_token_price.value),
-                fee: U128(contract.protocol_fee),
-                lpt_id: "usdt.qa.v1.nearlend.testnet|wnear.qa.v1.nearlend.testnet|2000#732"
-                    .to_string(),
-            },
-        ];
-        assert_eq!(expect_result, orders);
-    }
-
-    #[test]
     fn calculate_pnl_test() {
         let context = get_context(false);
         testing_env!(context);

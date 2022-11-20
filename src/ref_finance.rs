@@ -48,9 +48,7 @@ pub struct Swap {
 #[serde(crate = "near_sdk::serde")]
 #[serde(untagged)]
 pub enum Action {
-    SwapAction{
-        Swap: Swap
-    },
+    SwapAction { Swap: Swap },
 }
 
 #[derive(Serialize, Deserialize)]

@@ -216,16 +216,18 @@ impl Contract {
         price_impact: U128,
         order_action: OrderAction,
     ) {
-        let buy_amount =
-            BigDecimal::from(U128::from(order.amount)) * order.leverage * order.sell_token_price.value * self.get_price(order.buy_token.clone())
-                / order.buy_token_price.value;
+        let buy_amount = BigDecimal::from(U128::from(order.amount))
+            * order.leverage
+            * order.sell_token_price.value
+            * self.get_price(order.buy_token.clone())
+            / order.buy_token_price.value;
 
-        let action = Action::SwapAction{ 
+        let action = Action::SwapAction {
             Swap: Swap {
                 pool_ids: vec![self.view_pair(&order.sell_token, &order.buy_token).pool_id],
                 output_token: order.sell_token.clone(),
                 min_output_amount: WBalance::from(0),
-            }
+            },
         };
 
         log!(
@@ -327,8 +329,9 @@ impl Contract {
         log!("Final order cancel attached gas: {}", env::prepaid_gas().0);
 
         let mut order = order.clone();
-        let sell_amount =
-            order.sell_token_price.value * BigDecimal::from(U128::from(order.amount)) * order.leverage;
+        let sell_amount = order.sell_token_price.value
+            * BigDecimal::from(U128::from(order.amount))
+            * order.leverage;
 
         let pnl = self.calculate_pnl(signer_account_id(), order_id, market_data);
 

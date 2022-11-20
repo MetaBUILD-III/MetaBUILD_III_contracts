@@ -2,7 +2,6 @@ extern crate core;
 
 mod big_decimal;
 mod cancel_order;
-mod common;
 mod config;
 mod create_order;
 mod deposit;

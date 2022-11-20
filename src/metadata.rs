@@ -1,7 +1,8 @@
 use crate::big_decimal::{BigDecimal, WBalance, WRatio};
 use crate::*;
 use near_sdk::serde::{Deserialize, Serialize};
-use near_sdk::{Balance, BlockHeight, BorshStorageKey};
+use near_sdk::{AccountId, Balance, BlockHeight, BorshStorageKey};
+use std::fmt;
 
 #[derive(BorshSerialize, BorshStorageKey)]
 pub enum StorageKeys {
@@ -168,4 +169,17 @@ pub struct Liquidity {
     pub amount: U128,
     pub unclaimed_fee_x: U128,
     pub unclaimed_fee_y: U128,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(crate = "near_sdk::serde")]
+#[derive(Debug)]
+pub enum Actions {
+    Deposit { token: AccountId },
+}
+
+impl fmt::Display for Actions {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
 }
